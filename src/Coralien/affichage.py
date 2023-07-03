@@ -1,4 +1,8 @@
 import sys
+from typing import Optional
+
+import PySide6.QtCore
+import PySide6.QtWidgets
 from . import settings
 
 try:
@@ -7,12 +11,13 @@ try:
     from PySide6.QtGui import *
 except ModuleNotFoundError as e:
     if settings.get("logging")>=1:
-        print(e,"\nle module PySide6 devrait être installé pour que ce programme puisse fonctionner, lisez README.md pour plus de détails", file=sys.stderr)
-    sys.exit(1)
+        print("\nle module PySide6 devrait être installé pour que ce programme puisse fonctionner, lisez README.md pour plus de détails", file=sys.stderr)
+    raise e
     
-
+#main Qt loop
 app: QApplication = QApplication(sys.argv)
 
+###genral utilities windows and functions 
 __warnwin = QScrollArea()
 __warnwintxt = QLabel(__warnwin)
 __warnwin.setWidget(__warnwintxt)
@@ -26,10 +31,16 @@ def warn(warning:str,gravity:int)->None:
         else:
             print(warning)
 
-MainWin:QWidget=QWidget()
-MainWin.setFocusPolicy(Qt.ClickFocus)
+
+###Main windows configuration
+#yes, there will be only one instance of this windows, but the class is nescessary to ovverride some method (such as closeEvent)
+class Main_window(QWidget):
+    #Main windows class
+    def __init__(self) -> None:
+        super().__init__()
+        self.setFocusPolicy(Qt.ClickFocus)
+        self.setWindowTitle("Coralien")
 
 
-
-
+MainWin:QWidget=Main_window()
 MainWin.show()
