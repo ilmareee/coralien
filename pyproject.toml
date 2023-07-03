@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools",
+            "wheel",
+            "setuptools_scm[toml]>=6.2"
+]
+
+[project]
+name = "Coralien"
+description = "Projet python de coralien sur une base de jeu de la vie"
+readme = "README.md"
+requires-python = ">=3.7"
+dynamic = ["version"]
+dependencies = [
+    "pyside6"
+]
+
+[tool.setuptools_scm]
+
+[tool.setuptools]
+zip-safe = false
+license-files = ["LICENSE"]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+
+[project.scripts]
+Coralien = "Coralien:launch"

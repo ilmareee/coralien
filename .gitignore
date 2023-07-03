@@ -1,0 +1,6 @@
+/build/
+/dist/
+/src/Coralien.egg-info/
+__pycache__/
+/.vscode/
+/src/Coralien/settings.json
