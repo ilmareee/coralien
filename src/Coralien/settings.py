@@ -1,51 +1,109 @@
 #  Code sous liscence GPL3+. Plus de détail a <https://www.gnu.org/licenses/> ou dans le fichier LICENCE
 # encoding = utf8
 import json
+from operator import delitem
 import os
 from typing import Any
 from sys import stderr, argv
+from typing_extensions import override
 
-settings: dict = {}
-defaults: dict = {}
+
+class settings_collection():
+    def __init__(self,dictionary:dict={}) -> None:
+        self._dict:dict=dictionary
+    
+    def __getitem__(self, __key: str) -> Any:
+        if __debug__:
+            if not isinstance(__key,str):
+                raise NotImplementedError("cant access settings collection with something else than a string")
+        keys: list[str]=__key.split('.')
+        cursor: dict=self._dict
+        for key in keys:
+            cursor=cursor[key]
+        return cursor
+    
+    def __setitem__(self,__key,value) -> None:
+        if __debug__:
+            if not isinstance(__key,str):
+                raise NotImplementedError("cant access settings collection with something else than a string")
+        keys: list[str]=__key.split('.')
+        cursor: dict=self._dict
+        for key in keys[:-1]:
+            cursor=cursor.setdefault(key,{})
+        cursor[keys[-1]]=value
+    
+    def __contains__(self,__key) -> bool:
+        if __debug__:
+            if not isinstance(__key,str):
+                raise NotImplementedError("cant access settings collection with something else than a string")
+        keys: list[str]=__key.split('.')
+        cursor: dict=self._dict
+        for key in keys:
+            if key not in cursor:
+                return False
+            cursor=cursor[key]
+        return True
+    
+    def __delitem__(self,__key):
+        if __debug__:
+            if not isinstance(__key,str):
+                raise NotImplementedError("cant access settings collection with something else than a string")
+        keys: list[str]=__key.split('.')
+        cursor: dict=self._dict
+        for key in keys[:-1]:
+            cursor=cursor[key]
+        del cursor[keys[-1]]
+        
+class settings_motor():
+    def __init__(self,defaults:settings_collection,normal:settings_collection,overrides:settings_collection):
+        self._defaults: settings_collection=defaults
+        self._normal: settings_collection=normal
+        self._overrides: settings_collection=overrides
+        
+
+__override: settings_collection = settings_collection() #for eg command line arguments that should be prioritary but without ending saved
+__settings: settings_collection = settings_collection()
+__defaults: settings_collection = settings_collection()
 
 try:
     path: str = os.path.abspath(os.path.dirname(__file__))
     path = os.path.join(path, "default_settings.json")
     
     with open(path, 'r', encoding="utf-8") as setfile:
-        defaults = json.load(setfile)
+        __defaults = settings_collection(json.load(setfile))
         
 except Exception as e:
-    print("no default_settings.json file, package should be réinstalled or permission checked, aborting", file=stderr)
+    print("no default_settings.json file, package should be reinstalled or permission checked, aborting", file=stderr)
     raise FileNotFoundError('default_settings.json')
 
 if "--no-settings" in argv:
     print("Using only default settings")
+    __override=__defaults
     
-else:
-    path: str = os.path.abspath(os.path.dirname(__file__))
-    path = os.path.join(path, "settings.json")
+
+path: str = os.path.abspath(os.path.dirname(__file__))
+path = os.path.join(path, "settings.json")
     
-    try:
-        with open(path, 'r', encoding="utf-8") as setfile:
-            settings = json.load(setfile)
+try:
+    with open(path, 'r', encoding="utf-8") as setfile:
+        __settings = settings_collection(json.load(setfile))
             
-    except:
-        print("inexistant or ill-formated settings.json file, using defaults settings only")
+except:
+    print("inexistant or ill-formated settings.json file, using defaults settings only")
 
 
 def get(setloc: str) -> Any:
     path: list[str]=setloc.split('.')
     
     try:
-        temp = settings
+        temp = __settings
         for key in path:
             temp = temp[key]
         return temp
     
     except (KeyError, TypeError):
         try:
-            temp = defaults
+            temp = __defaults
             for key in path:
                 temp = temp[key]
             return temp
@@ -66,7 +124,7 @@ def set(setloc: str, value) -> bool:
     Returns:
         bool: if the update was sucessful
     """
-    temp = settings
+    temp = __settings
     path: list[str]=setloc.split('.')
     
     for key in path[:-1]:
@@ -94,7 +152,7 @@ def save() -> bool:
     
     try:
         with open(path, 'w', encoding="utf-8") as setfile:
-            json.dump(settings, setfile, indent=2)
+            json.dump(__settings, setfile, indent=2)
             return True
         
     except Exception as e:

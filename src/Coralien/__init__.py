@@ -33,7 +33,7 @@ if "--help" in sys.argv or "-h" in sys.argv:
 def launch_app() -> NoReturn:
     if getset("logging")>=3:
         print("Attempting to import the main program")
-    from . import affichage
+    from . import main
     if getset("logging")>=3:
         print("No error, proceding to launch the QT app")
-    sys.exit(affichage.app.exec_())
+    sys.exit(main.app.exec_())
