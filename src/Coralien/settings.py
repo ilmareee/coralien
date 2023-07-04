@@ -5,7 +5,6 @@ from operator import delitem
 import os
 from typing import Any
 from sys import stderr, argv
-from typing_extensions import override
 
 
 class settings_collection():
@@ -86,6 +85,9 @@ class settings_motor():
         except:
             if settings["logging"]>=1:
                 print("Could not write settings in",path)
+    
+    def override(self,key,value):
+        self._overrides[key]=value
 
 
 __override: settings_collection = settings_collection() #for eg command line arguments that should be prioritary but without ending saved
@@ -104,7 +106,7 @@ except Exception as e:
     raise FileNotFoundError('default_settings.json')
 
 if "--no-settings" in argv:
-    print("Using only default settings")
+    print("--no-settings specified: Using only default and command line settings")
     __override=__defaults
 
 if "--config-file" in argv:
@@ -125,3 +127,9 @@ except:
 
 settings=settings_motor(__defaults,__normal,__override,config_path)
 del __override,__normal,__defaults
+
+if '--verbose' in argv:
+    settings.override("logging",2)
+
+if '--debug' in argv:
+    settings.override("logging",3)

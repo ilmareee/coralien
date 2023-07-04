@@ -17,6 +17,8 @@ if "--help" in sys.argv or "-h" in sys.argv:
         --license           Show the license
         --no-settings       Use only default settings
         --config-file PATH  PATH to use for the configuration file
+        --verbose           Set logging to 2
+        --debug             Set logging to 3
     
     all non recognised option are ignored
     all option are passed to PySide, so PySide (QT) option should work to
