@@ -44,7 +44,7 @@ class settings_collection():
             cursor=cursor[key]
         return True
     
-    def __delitem__(self,__key):
+    def __delitem__(self,__key) -> None:
         if __debug__:
             if not isinstance(__key,str):
                 raise NotImplementedError("cant access settings collection with something else than a string")
@@ -55,14 +55,41 @@ class settings_collection():
         del cursor[keys[-1]]
         
 class settings_motor():
-    def __init__(self,defaults:settings_collection,normal:settings_collection,overrides:settings_collection):
+    def __init__(self,defaults:settings_collection,normal:settings_collection,overrides:settings_collection,config_path:str) -> None:
         self._defaults: settings_collection=defaults
         self._normal: settings_collection=normal
         self._overrides: settings_collection=overrides
-        
+        self._default_path=config_path
+    
+    def __getitem__(self,__key:str) -> Any:
+        for sett in (self._overrides,self._normal,self._defaults):
+            if __key in sett:
+                return sett[__key]
+        return None
+    
+    def __setitem__(self,__key,value) -> None:
+        if __key in self._overrides:
+            del self._overrides[__key]
+        self._normal[__key]=value
+    
+    def setdefault(self,key:str) -> None:
+        for sett in (self._overrides,self._normal):
+            if key in sett:
+                del sett[key]
+    
+    def save(self,path:str=None) -> None:
+        if path is None:
+            path=self._default_path
+        try:
+            with open(path, 'w', encoding="utf-8") as setfile:
+                json.dump(self._normal._dict, setfile, indent=2)
+        except:
+            if settings["logging"]>=1:
+                print("Could not write settings in",path)
+
 
 __override: settings_collection = settings_collection() #for eg command line arguments that should be prioritary but without ending saved
-__settings: settings_collection = settings_collection()
+__normal: settings_collection = settings_collection()
 __defaults: settings_collection = settings_collection()
 
 try:
@@ -79,84 +106,22 @@ except Exception as e:
 if "--no-settings" in argv:
     print("Using only default settings")
     __override=__defaults
-    
 
-path: str = os.path.abspath(os.path.dirname(__file__))
-path = os.path.join(path, "settings.json")
+if "--config-file" in argv:
+    config_path=argv[argv.index("--config-file")+1]
+else:
+    config_path: str = os.path.abspath(os.path.dirname(__file__))
+    config_path = os.path.join(path, "settings.json")
+
+    
     
 try:
-    with open(path, 'r', encoding="utf-8") as setfile:
-        __settings = settings_collection(json.load(setfile))
+    with open(config_path, 'r', encoding="utf-8") as setfile:
+        __normal = settings_collection(json.load(setfile))
             
 except:
     print("inexistant or ill-formated settings.json file, using defaults settings only")
+    __normal=settings_collection()
 
-
-def get(setloc: str) -> Any:
-    path: list[str]=setloc.split('.')
-    
-    try:
-        temp = __settings
-        for key in path:
-            temp = temp[key]
-        return temp
-    
-    except (KeyError, TypeError):
-        try:
-            temp = __defaults
-            for key in path:
-                temp = temp[key]
-            return temp
-        
-        except:
-            if get("logging") >= 1:
-                print("No setting found for ", setloc, file=stderr)
-            return None
-
-
-def set(setloc: str, value) -> bool:
-    """Définit les paramètres 'setloc' à la valeur value.
-
-    Args:
-        setloc (str): Paramètre à mettre à jour, un fichier. Permit de séparer par groupe (par exemple "group.sub.setting")
-        value (any): La nouvelle valeur du paramètre, doit être représentable en json
-
-    Returns:
-        bool: if the update was sucessful
-    """
-    temp = __settings
-    path: list[str]=setloc.split('.')
-    
-    for key in path[:-1]:
-        if type(temp) is not dict:
-            if get("logging") >= 1:
-                print("setting path to non dict, abborting", file=stderr)
-                
-            return False
-        
-        if key not in temp:
-            temp[key] = {}
-        temp = temp[key]
-        
-    temp[path[-1]] = value
-    
-    return True
-
-
-def save() -> bool:
-    """Sauvegarde les changements dans settings.json
-
-    Returns:
-        bool: Si les changement on pu se faire
-    """
-    
-    try:
-        with open(path, 'w', encoding="utf-8") as setfile:
-            json.dump(__settings, setfile, indent=2)
-            return True
-        
-    except Exception as e:
-        if get("logging") >= 1:
-            print("Illegal setting for json representation or no write acess:", e, file=stderr)
-            
-        return False
+settings=settings_motor(__defaults,__normal,__override,config_path)
+del __override,__normal,__defaults

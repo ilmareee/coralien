@@ -1,4 +1,4 @@
-from .settings import get as getset
+from .settings import settings
 
 from PySide6.QtCore import *
 from PySide6.QtWidgets import *
