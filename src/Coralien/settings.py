@@ -118,6 +118,7 @@ else:
         confighome = os.environ['XDG_CONFIG_HOME']
     else:
         confighome = os.path.join(os.environ['HOME'], '.config')
+    os.makedirs(confighome, exist_ok=True)
     config_path:str = os.path.join(confighome, 'Coralien','settings.json')
 
     
