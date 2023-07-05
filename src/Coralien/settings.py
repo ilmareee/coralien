@@ -112,8 +112,13 @@ if "--no-settings" in argv:
 if "--config-file" in argv:
     config_path=argv[argv.index("--config-file")+1]
 else:
-    config_path: str = os.path.abspath(os.path.dirname(__file__))
-    config_path = os.path.join(path, "settings.json")
+    if 'APPDATA' in os.environ:
+        confighome = os.environ['APPDATA']
+    elif 'XDG_CONFIG_HOME' in os.environ:
+        confighome = os.environ['XDG_CONFIG_HOME']
+    else:
+        confighome = os.path.join(os.environ['HOME'], '.config')
+    config_path:str = os.path.join(confighome, 'Coralien','settings.json')
 
     
     
