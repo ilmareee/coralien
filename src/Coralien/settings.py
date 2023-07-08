@@ -52,6 +52,13 @@ class settings_collection():
         for key in keys[:-1]:
             cursor=cursor[key]
         del cursor[keys[-1]]
+    
+    def keys(self) -> set:
+        keys:list[str]=list(self._dict.keys())
+        for i,key in enumerate(keys):
+            if isinstance(self[key],dict):
+                
+                
         
 class settings_motor():
     def __init__(self,defaults:settings_collection,normal:settings_collection,overrides:settings_collection,config_path:str) -> None:
