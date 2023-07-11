@@ -57,7 +57,8 @@ class settings_collection():
         keys:list[str]=list(self._dict.keys())
         for i,key in enumerate(keys):
             if isinstance(self[key],dict):
-                
+                keys.append(self[key].keys())
+                keys.pop(i)
                 
         
 class settings_motor():

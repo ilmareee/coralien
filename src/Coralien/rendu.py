@@ -13,4 +13,11 @@ except:
     sys.exit(1)
 
 class ZoneDeRendu(QWidget):
-    pass
+    def __init__(self):
+        super().__init__()
+        self.generation:int=0
+    def nextgen(self,generations:int=1):
+        self.generation+=generations
+    
+    def redraw(self):
+        pass

@@ -1,6 +1,7 @@
 [build-system]
 requires = ["setuptools",
             "wheel",
+            "cythoné,
             "setuptools_scm[toml]>=6.2"
 ]
 
@@ -11,6 +12,7 @@ readme = "README.md"
 requires-python = ">=3.7"
 dynamic = ["version"]
 dependencies = [
+    "cython",
     "pyside6",
     "numpy"
 ]
