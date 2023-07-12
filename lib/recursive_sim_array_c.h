@@ -18,3 +18,5 @@ struct recursive_array
 };
 
 typedef recursive_array recursive_array;
+
+typedef struct{recursive_array *array;short level;} packaged_array;
