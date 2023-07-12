@@ -1,29 +1,51 @@
 #include "recursive_sim_array_c.h"
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
+
+cell zero_cell={0,0};
+cell* zero_cell_ptr=&zero_cell;
+
+cell* new_cell(short cur,short next)
+//return a new cell with given cur and next values
+{
+    cell* pointer=(cell*)malloc(sizeof(cell));
+    if (pointer==NULL){
+        printf("Not Enough RAM -- ABORTING");
+        exit(-1);
+    }
+    (*pointer).cur=cur;
+    (*pointer).next=next;
+    return pointer;
+}
+
+
+recursive_array* new_array(cell* cell_to_point)
+//return a new empty array
+{
+    recursive_array* pointer=(recursive_array*)malloc(sizeof(recursive_array));
+    if (pointer==NULL){
+        printf("Not Enough RAM -- ABORTING");
+        exit(-1);
+    }
+    *pointer=(recursive_array){{1,{.cel = cell_to_point}},{1,{.cel = cell_to_point}},{1,{.cel = cell_to_point}},{1,{.cel = cell_to_point}},NULL};
+    return pointer;
+}
 
 
 
-cell* access(packaged_array arr,int x,int y)
-//access a cell considering x/y 0 are upper left of array. try to acess parent if needed
-//return NULL if unedefined (hitting a NULL while searching)
+const cell* access(packaged_array arr,int x,int y)
+//access (readonly) a cell considering x/y 0 are upper left of array. try to acess parent if needed.
 {
     recursive_array* array=arr.array;
-    if (array == NULL){
-        return NULL;
-    }
     int size=1<<arr.level;
     while ((x<0) || (y<0) || (y>=size) || (x>=size)){ //x or y are out of bound, going upper in the recursive structure
         recursive_array* upper=(*array).parent;
         if (upper == NULL){
-            return NULL;
+            return zero_cell_ptr;
         }
-        if (array==(*upper).upright.sub_array){
+        if (array==(*upper).upright.value.arr){
             x-=size;
-        } else if (array==(*upper).downleft.sub_array){
+        } else if (array==(*upper).downleft.value.arr){
             y-=size;
-        } else if (array==(*upper).downright.sub_array){
+        } else if (array==(*upper).downright.value.arr){
             x-=size;
             y-=size;
         }
@@ -31,46 +53,41 @@ cell* access(packaged_array arr,int x,int y)
         array=upper;
         size=size<<1;
     }
-    while (size!=1){     //x and y are in this structure, finding in wich quarter
+    while (true){     //x and y are in this structure, finding in wich quarter
         size=size>>1;
         if (x>=size){
-            x-=size;
             if (y>=size){
+                if ((*array).downright.iscell){
+                    return (*array).downright.value.cel;
+                }
+                array=(*array).downright.value.arr;
                 y-=size;
-                array=(*array).downright.sub_array;
             } else {
-                array=(*array).upright.sub_array;
+                if ((*array).upright.iscell){
+                    return (*array).upright.value.cel;
+                }
+                array=(*array).upright.value.arr;
             }
+            x-=size;
         } else {
             if (y>=size){
+                if ((*array).downleft.iscell){
+                    return (*array).downleft.value.cel;
+                }
+                array=(*array).downleft.value.arr;
                 y-=size;
-                array=(*array).downleft.sub_array;
             } else {
-                array=(*array).upleft.sub_array;
+                if ((*array).upleft.iscell){
+                    return (*array).upleft.value.cel;
+                }
+                array=(*array).upleft.value.arr;
             }
         }
-        if (array==NULL){
-            return NULL;
-        }
     }
-    //in fact, we are at lowest level, so this is a cell*, not a subarray
-    return (cell*)array;
 };
-recursive_array* maybe_new_array(recursive_array* pointer)
-//take a (potentially NULL) pointer to an recursive array, and return a valid one (to a new array if pointer was null)
-{
-    if (pointer==NULL){
-        pointer=(recursive_array*)malloc(sizeof(recursive_array));
-        if (pointer==NULL){
-            printf("Not Enough RAM -- ABORTING");
-            exit(-1);
-        }
-    }
-    return pointer;
-}
 
 
-packaged_array define(packaged_array array,int x,int y,cell* new_cell)
+packaged_array update(packaged_array array,int x,int y,short cur,short next)
 //define cell considering x/y 0 are upper left of array.
 //create parents/child if needed, and return new outmost array
 //return {NULL,any int} if not enough RAM
@@ -101,23 +118,35 @@ packaged_array define(packaged_array array,int x,int y,cell* new_cell)
             x-=size;
             if (y>=size){
                 y-=size;
-                newptr=maybe_new_array((*working_array).downright.sub_array);
-                (*working_array).downright.sub_array=newptr;
+                newptr=(*working_array).downright.sub_array;
+                if (newptr==NULL){
+                    newptr=new_array();
+                    (*working_array).downright.sub_array=newptr;
+                }
                 working_array=newptr;
             } else {
-                newptr=maybe_new_array((*working_array).upright.sub_array);
-                (*working_array).upright.sub_array=newptr;
+                newptr=(*working_array).upright.sub_array;
+                if (newptr==NULL){
+                    newptr=new_array();
+                    (*working_array).upright.sub_array=newptr;
+                }
                 working_array=newptr;
             }
         } else {
             if (y>=size){
                 y-=size;
-                newptr=maybe_new_array((*working_array).downleft.sub_array);
-                (*working_array).downleft.sub_array=newptr;
+                newptr=(*working_array).downleft.sub_array;
+                if (newptr==NULL){
+                    newptr=new_array();
+                    (*working_array).downleft.sub_array=newptr;
+                }
                 working_array=newptr;
             } else {
-                newptr=maybe_new_array((*working_array).upleft.sub_array);
-                (*working_array).upleft.sub_array=newptr;
+                newptr=(*working_array).upleft.sub_array;
+                if (newptr==NULL){
+                    newptr=new_array();
+                    (*working_array).upleft.sub_array=newptr;
+                }
                 working_array=newptr;
             }
         }
