@@ -2,5 +2,9 @@
   "affichage": {
     "warn":true
   },
+  "sim": {
+    "chunk_size":15
+  },
   "logging": 2
+  
 }

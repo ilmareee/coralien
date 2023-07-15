@@ -5,21 +5,21 @@ from Cython.Compiler import Options
 import os
 
 Options.language_level = 3
-copt: dict[str, list[str]] = {# 'unix': ['-std=gnu++20', '-g', '-Og', '-pthread', '-ffast-math'],
-                              'unix': ['-std=gnu++20','-O3','-pthread','-ffast-math']  ,
-                              'mingw32': ['-std=gnu++20', '-O3', '-pthread', '-ffast-math'],
-                              'mingw64': ['-std=gnu++20', '-O3', '-pthread', '-ffast-math'],
-                              'msvc': ['/std:c++20', '/cgthreads8', '/O2', '/GL'],
+copt: dict[str, list[str]] = {# 'unix': ['-std=c2x', '-g', '-Og', '-pthread', '-ffast-math','-fopenmp'],
+                              'unix': ['-std=c2x','-O3','-pthread','-ffast-math','-fopenmp']  ,
+                              'mingw32': ['-std=c2x', '-O3', '-pthread', '-ffast-math','-fopenmp'],
+                              'mingw64': ['-std=c2x', '-O3', '-pthread', '-ffast-math','-fopenmp'],
+                              'msvc': ['/std:c20', '/cgthreads8', '/O2', '/GL','/openmp'],
                               # 'cygiwin' : []
                               }
 sourcesfiles: list[str] = []
 for folder, folders, files in os.walk("lib"):
     for file in files:
         if file.split(".")[-1] in ("pyx", "c"):  # ,"pxd"
-            if file not in ("recursive_sim_array.c"):
+            if file not in ("cy_sim.c"):
                 sourcesfiles.append(folder + "/" + file)
 
-cppgravilib: list[Extension] = [Extension("Coralien.recursive_sim_array", sources=sourcesfiles, include_dirs=[
+cppgravilib: list[Extension] = [Extension("Coralien.cy_sim", sources=sourcesfiles, include_dirs=[
                                           './lib/'], language="c")]
 
 
@@ -32,6 +32,7 @@ class build_ext_subclass(build_ext):
                   copt[compiler])
             for e in self.extensions:
                 e.extra_compile_args = copt[compiler]
+                e.extra_link_args = copt[compiler]
             build_ext.build_extensions(self)
         else:
             print("ERROR:", compiler, "is NOT a known compiler, you should add relevant compiler specific args to copt and/or report to devs")
