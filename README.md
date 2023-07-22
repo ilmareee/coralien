@@ -3,7 +3,7 @@
 Comme son nom l'indique, ceci est un projet de coralien.
 Écrit essentiellement en python, il intégrera peut être du cython par la suite pour des raisons de performance.
 
-Les librairies utilisées sont:
+Les librairies utilisées sont :
  - PySide6 : pour le GUI,
  - setuptools et setuptools_scm : pour le build des wheels (et potentiellement du futur cython).
 
