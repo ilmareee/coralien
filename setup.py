@@ -3,6 +3,7 @@ from setuptools.command.build_ext import build_ext
 from Cython.Build import cythonize
 from Cython.Compiler import Options
 import os
+import numpy
 
 Options.language_level = 3
 copt: dict[str, list[str]] = {# 'unix': ['-std=c2x', '-g', '-Og', '-pthread', '-ffast-math','-fopenmp'],
@@ -20,7 +21,8 @@ for folder, folders, files in os.walk("lib"):
                 sourcesfiles.append(folder + "/" + file)
 
 cppgravilib: list[Extension] = [Extension("Coralien.cy_sim", sources=sourcesfiles, include_dirs=[
-                                          './lib/'], language="c")]
+                                          './lib/',numpy.get_include()],define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
+                                          language="c")]
 
 
 class build_ext_subclass(build_ext):
