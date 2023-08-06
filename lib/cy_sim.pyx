@@ -9,37 +9,41 @@ cnp.import_array()
 DTYPE = np.int16
 ctypedef cnp.int16_t DTYPE_t
 
+ctypedef struct cells_view :
+    DTYPE_t center;
+    DTYPE_t up;
+    DTYPE_t left;
+    DTYPE_t down;
+    DTYPE_t right;
+    DTYPE_t upleft;
+    DTYPE_t downleft;
+    DTYPE_t downright;
+    DTYPE_t upright;
+
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
-cdef DTYPE_t simulate_one(DTYPE_t[:,:,:] cells,cython.bint isodd) nogil:
-    """cells should be a 3*3*2 memoryview, return True if cur state != next state"""
-
-    if cells[1,1,isodd]==-1:
-        cells[1,1,1-isodd]=-1
-        return False
+cdef DTYPE_t simulate_one(cells_view cells) nogil:
+    if cells.center==-1:
+        return -1
     
-    cdef short alives,deads,x,y
-    for x in range(3):
-        for y in range(3):
-            if x!=1 or y!=1:
-                if cells[x,y,isodd]==1:
-                    alives+=1
-                elif cells[x,y,isodd]==-1:
-                    deads+=1
-    if cells[1,1,isodd]==0: # cell is empty
+    cdef short alives,deads
+    cdef DTYPE_t x
+    for x in [cells.up, cells.left, cells.down, cells.right, cells.upleft, cells.downleft, cells.downright, cells.upright]:
+        if x==1:
+            alives+=1
+        elif x==-1:
+            deads+=1
+    if cells.center==0: # cell is empty
         if alives==3 and deads<=3:
-            cells[1,1,1-isodd]=1
-            return True
+            return 1
         else:
-            return False
+            return 0
     else: #cell is alive
         if alives>3 or alives<2 or deads>3:
-            cells[1,1,1-isodd]=-1
-            return True
+            return -1
         else:
-            cells[1,1,1-isodd]=1
-            return False
+            return 1
 
 chunksize:int=2
 cdef short cchunksize=2
@@ -100,11 +104,123 @@ cdef class chunk:
         #on ODD: [:,:,1]->[:,:,0], reverse on non ODD
         #return true if at least one cell is alive
 
-        cdef short x,y,looprange
-        looprange=cchunksize+1
-        for x in range(1,looprange):
-            for y in range(1,looprange):
-                simulate_one(self.memview[x-1:x+1,y-1:y+1,:],isodd)
+        cdef short x,y
+        cdef DTYPE_t newv
+        cdef cells_view cells
+        for x in range(cchunksize):
+            for y in range(cchunksize):
+                if x!=0 and x!=cchunksize-1:
+                    if y!=0 and y!=cchunksize-1:
+                        cells=cells_view(
+                                self.memview[x,y,isodd],
+                                self.memview[x,y-1,isodd],
+                                self.memview[x-1,y,isodd],
+                                self.memview[x,y+1,isodd],
+                                self.memview[x+1,y,isodd],
+                                self.memview[x-1,y-1,isodd],
+                                self.memview[x-1,y+1,isodd],
+                                self.memview[x+1,y+1,isodd],
+                                self.memview[x+1,y-1,isodd]
+                                )
+                    elif y==0:
+                        cells=cells_view( #y = 0
+                                self.memview[x,y,isodd],
+                                self.up[x,isodd],
+                                self.memview[x-1,y,isodd],
+                                self.memview[x,y+1,isodd],
+                                self.memview[x+1,y,isodd],
+                                self.up[x-1,isodd],
+                                self.memview[x-1,y+1,isodd],
+                                self.memview[x+1,y+1,isodd],
+                                self.up[x+1,isodd]
+                                )
+                    else:
+                        cells=cells_view( # y = cchunksize
+                                self.memview[x,y,isodd],
+                                self.memview[x,y-1,isodd],
+                                self.memview[x-1,y,isodd],
+                                self.down[x,isodd],
+                                self.memview[x+1,y,isodd],
+                                self.memview[x-1,y-1,isodd],
+                                self.down[x-1,isodd],
+                                self.down[x+1,isodd],
+                                self.memview[x+1,y-1,isodd]
+                                )
+                elif x==0:
+                    if y!=0 and y!=cchunksize-1:
+                        cells=cells_view( # x = 0
+                                self.memview[x,y,isodd],
+                                self.memview[x,y-1,isodd],
+                                self.left[y,isodd],
+                                self.memview[x,y+1,isodd],
+                                self.memview[x+1,y,isodd],
+                                self.left[y-1,isodd],
+                                self.left[y+1,isodd],
+                                self.memview[x+1,y+1,isodd],
+                                self.memview[x+1,y-1,isodd]
+                                )
+                    elif y==0:
+                        cells=cells_view( #y = 0
+                                self.memview[x,y,isodd],
+                                self.up[x,isodd],
+                                self.left[y,isodd],
+                                self.memview[x,y+1,isodd],
+                                self.memview[x+1,y,isodd],
+                                self.upleft[isodd],
+                                self.left[y+1,isodd],
+                                self.memview[x+1,y+1,isodd],
+                                self.up[x+1,isodd]
+                                )
+                    else:
+                        cells=cells_view( # y = cchunksize
+                                self.memview[x,y,isodd],
+                                self.memview[x,y-1,isodd],
+                                self.left[y,isodd],
+                                self.down[x,isodd],
+                                self.memview[x+1,y,isodd],
+                                self.left[y-1,isodd],
+                                self.downleft[isodd],
+                                self.down[x+1,isodd],
+                                self.memview[x+1,y-1,isodd]
+                                )
+                else:
+                    if y!=0 and y!=cchunksize-1:
+                        cells=cells_view( # x = cchunksize
+                                self.memview[x,y,isodd],
+                                self.memview[x,y-1,isodd],
+                                self.memview[x-1,y,isodd],
+                                self.memview[x,y+1,isodd],
+                                self.right[y,isodd],
+                                self.memview[x-1,y-1,isodd],
+                                self.memview[x-1,y+1,isodd],
+                                self.right[y+1,isodd],
+                                self.right[y-1,isodd]
+                                )
+                    elif y==0:
+                        cells=cells_view( #y = 0
+                                self.memview[x,y,isodd],
+                                self.up[x,isodd],
+                                self.memview[x-1,y,isodd],
+                                self.memview[x,y+1,isodd],
+                                self.right[y,isodd],
+                                self.up[x-1,isodd],
+                                self.memview[x-1,y+1,isodd],
+                                self.right[y+1,isodd],
+                                self.upright[isodd]
+                                )
+                    else:
+                        cells=cells_view( # y = cchunksize
+                                self.memview[x,y,isodd],
+                                self.memview[x,y-1,isodd],
+                                self.memview[x-1,y,isodd],
+                                self.down[x,isodd],
+                                self.right[y,isodd],
+                                self.memview[x-1,y-1,isodd],
+                                self.down[x-1,isodd],
+                                self.downright[isodd],
+                                self.right[y-1,isodd]
+                                )
+                self.memview[x,y,1-isodd] = simulate_one(cells)
 
     def py_direct_simulate(self,isodd:bool):
         self.simulate(isodd)
