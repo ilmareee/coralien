@@ -10,15 +10,15 @@ DTYPE = np.int16
 ctypedef cnp.int16_t DTYPE_t
 
 ctypedef struct cells_view :
-    DTYPE_t center;
-    DTYPE_t up;
-    DTYPE_t left;
-    DTYPE_t down;
-    DTYPE_t right;
-    DTYPE_t upleft;
-    DTYPE_t downleft;
-    DTYPE_t downright;
-    DTYPE_t upright;
+    DTYPE_t center
+    DTYPE_t up
+    DTYPE_t left
+    DTYPE_t down
+    DTYPE_t right
+    DTYPE_t upleft
+    DTYPE_t downleft
+    DTYPE_t downright
+    DTYPE_t upright
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
