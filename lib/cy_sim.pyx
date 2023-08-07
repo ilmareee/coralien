@@ -20,20 +20,35 @@ ctypedef struct cells_view :
     DTYPE_t downright
     DTYPE_t upright
 
+cdef cells_view new_cells_view(DTYPE_t center,DTYPE_t up,DTYPE_t left,DTYPE_t down,DTYPE_t right,DTYPE_t upleft,DTYPE_t downleft,DTYPE_t downright,DTYPE_t upright) nogil:
+    cdef cells_view view
+    view.center=center
+    view.up=up
+    view.left=left
+    view.down=down
+    view.right=right
+    view.upleft=upleft
+    view.downleft=downleft
+    view.downright=downright
+    view.upright=upright
+
+    return view
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
 cdef DTYPE_t simulate_one(cells_view cells) nogil:
-    if cells.center==-1:
+    if cells.center==-1: #cell is dead
         return -1
     
     cdef short alives,deads
-    cdef DTYPE_t x
-    for x in [cells.up, cells.left, cells.down, cells.right, cells.upleft, cells.downleft, cells.downright, cells.upright]:
-        if x==1:
-            alives+=1
-        elif x==-1:
+    cdef short x
+    cdef DTYPE_t[8] arr = (cells.down,cells.downleft,cells.downright,cells.left,cells.right,cells.up,cells.upleft,cells.upright)
+    for x in range(8):
+        if arr[x]<0:
             deads+=1
+        elif arr[x]>0:
+            alives+=1
+
     if cells.center==0: # cell is empty
         if alives==3 and deads<=3:
             return 1
@@ -111,7 +126,7 @@ cdef class chunk:
             for y in range(cchunksize):
                 if x!=0 and x!=cchunksize-1:
                     if y!=0 and y!=cchunksize-1:
-                        cells=cells_view(
+                        cells=new_cells_view(
                                 self.memview[x,y,isodd],
                                 self.memview[x,y-1,isodd],
                                 self.memview[x-1,y,isodd],
@@ -123,7 +138,7 @@ cdef class chunk:
                                 self.memview[x+1,y-1,isodd]
                                 )
                     elif y==0:
-                        cells=cells_view( #y = 0
+                        cells=new_cells_view( #y = 0
                                 self.memview[x,y,isodd],
                                 self.up[x,isodd],
                                 self.memview[x-1,y,isodd],
@@ -135,7 +150,7 @@ cdef class chunk:
                                 self.up[x+1,isodd]
                                 )
                     else:
-                        cells=cells_view( # y = cchunksize
+                        cells=new_cells_view( # y = cchunksize
                                 self.memview[x,y,isodd],
                                 self.memview[x,y-1,isodd],
                                 self.memview[x-1,y,isodd],
@@ -148,7 +163,7 @@ cdef class chunk:
                                 )
                 elif x==0:
                     if y!=0 and y!=cchunksize-1:
-                        cells=cells_view( # x = 0
+                        cells=new_cells_view( # x = 0
                                 self.memview[x,y,isodd],
                                 self.memview[x,y-1,isodd],
                                 self.left[y,isodd],
@@ -160,7 +175,7 @@ cdef class chunk:
                                 self.memview[x+1,y-1,isodd]
                                 )
                     elif y==0:
-                        cells=cells_view( #y = 0
+                        cells=new_cells_view( #y = 0
                                 self.memview[x,y,isodd],
                                 self.up[x,isodd],
                                 self.left[y,isodd],
@@ -172,7 +187,7 @@ cdef class chunk:
                                 self.up[x+1,isodd]
                                 )
                     else:
-                        cells=cells_view( # y = cchunksize
+                        cells=new_cells_view( # y = cchunksize
                                 self.memview[x,y,isodd],
                                 self.memview[x,y-1,isodd],
                                 self.left[y,isodd],
@@ -185,7 +200,7 @@ cdef class chunk:
                                 )
                 else:
                     if y!=0 and y!=cchunksize-1:
-                        cells=cells_view( # x = cchunksize
+                        cells=new_cells_view( # x = cchunksize
                                 self.memview[x,y,isodd],
                                 self.memview[x,y-1,isodd],
                                 self.memview[x-1,y,isodd],
@@ -197,7 +212,7 @@ cdef class chunk:
                                 self.right[y-1,isodd]
                                 )
                     elif y==0:
-                        cells=cells_view( #y = 0
+                        cells=new_cells_view( #y = 0
                                 self.memview[x,y,isodd],
                                 self.up[x,isodd],
                                 self.memview[x-1,y,isodd],
@@ -209,7 +224,7 @@ cdef class chunk:
                                 self.upright[isodd]
                                 )
                     else:
-                        cells=cells_view( # y = cchunksize
+                        cells=new_cells_view( # y = cchunksize
                                 self.memview[x,y,isodd],
                                 self.memview[x,y-1,isodd],
                                 self.memview[x-1,y,isodd],
