@@ -3,7 +3,7 @@
     "warn":true
   },
   "sim": {
-    "chunk_size":15
+    "chunk_size":16
   },
   "logging": 2
   
