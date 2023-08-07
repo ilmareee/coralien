@@ -95,6 +95,7 @@ cdef class chunk:
         self.downright=zeros_arr_corner
         self.add_voisins(up,down,right,left,upleft,upright,downleft,downright)
 
+    @cython.boundscheck(False) # turn off bounds-checking for entire function
     def add_voisins(self,up:chunk=None,down:chunk=None,right:chunk=None,left:chunk=None,upleft:chunk=None,upright:chunk=None,downleft:chunk=None,downright:chunk=None) -> None:
         if up!=None:
             self.up=up.memview[:,-1,:]
@@ -249,3 +250,44 @@ def setchunksize(size:int):
         zeros_arr=np.zeros((size,size),dtype=DTYPE)
     else:
         raise ValueError("chunk size must be at least 2")
+
+
+
+
+chunks:dict[tuple,chunk]={}
+
+cdef void _new_chunk(x:int,y:int,isodd:bool=False,start:np.array=None):
+    global chunks
+    up:chunk=chunks[(x,y-1)] if (x,y-1) in chunks else None
+    down:chunk=chunks[(x,y+1)] if (x,y+1) in chunks else None
+    left:chunk=chunks[(x-1,y)] if (x-1,y) in chunks else None
+    right:chunk=chunks[(x+1,y)] if (x+1,y) in chunks else None
+    upleft:chunk=chunks[(x-1,y-1)] if (x-1,y-1) in chunks else None
+    upright:chunk=chunks[(x+1,y-1)] if (x+1,y-1) in chunks else None
+    downleft:chunk=chunks[(x-1,y+1)] if (x-1,y+1) in chunks else None
+    downright:chunk=chunks[(x+1,y+1)] if (x+1,y+1) in chunks else None
+
+    newch=chunk(up,down,right,left,upleft,upright,downleft,downright)
+    chunks[(x,y)]=newch
+    
+    if up!=None:
+        up.add_voisins(down=newch)
+    if down!=None:
+        down.add_voisins(up=newch)
+    if left!=None:
+        left.add_voisins(right=newch)
+    if right!=None:
+        right.add_voisins(left=newch)
+    if upleft!=None:
+        upleft.add_voisins(downright=newch)
+    if upright!=None:
+        upright.add_voisins(downleft=newch)
+    if downleft!=None:
+        downleft.add_voisins(upright=newch)
+    if downright!=None:
+        downright.add_voisins(upleft=newch)
+
+def start(arr:np.array=np.array([])) -> None:
+    """reinit and start a new simulation with given start simulation"""
+    global chunks
+    chunks={}
