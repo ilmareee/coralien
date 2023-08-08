@@ -40,7 +40,8 @@ cdef DTYPE_t simulate_one(cells_view cells) nogil:
     if cells.center==-1: #cell is dead
         return -1
     
-    cdef short alives,deads
+    cdef short alives=0
+    cdef short deads=0
     cdef short x
     cdef DTYPE_t[8] arr = (cells.down,cells.downleft,cells.downright,cells.left,cells.right,cells.up,cells.upleft,cells.upright)
     for x in range(8):
@@ -67,7 +68,7 @@ cdef DTYPE_t[:] zeros_arr_corner=np.zeros((2),dtype=DTYPE)
 
 
 cdef class chunk:
-    cdef public cnp.ndarray nparray
+    cdef cnp.ndarray nparray
     cdef DTYPE_t[:,:,:] memview
 
     cdef DTYPE_t[:,:] up
@@ -79,10 +80,12 @@ cdef class chunk:
     cdef DTYPE_t[:] downleft
     cdef DTYPE_t[:] downright
 
-    def __init__(self,up:chunk=None,down:chunk=None,right:chunk=None,left:chunk=None,upleft:chunk=None,upright:chunk=None,downleft:chunk=None,downright:chunk=None) -> None:
+    def __init__(self,up:chunk=None,down:chunk=None,right:chunk=None,left:chunk=None,upleft:chunk=None,upright:chunk=None,downleft:chunk=None,downright:chunk=None,startarr:np.array=None) -> None:
 
-        cdef cnp.ndarray nparray=np.zeros((chunksize,chunksize,2),dtype=DTYPE)
-        self.nparray=nparray
+        if startarr==None:
+            self.nparray=np.zeros((chunksize,chunksize,2),dtype=DTYPE)
+        else:
+            self.nparray=startarr
         self.memview=self.nparray
 
         self.up=zeros_arr
@@ -116,7 +119,7 @@ cdef class chunk:
  
     @cython.boundscheck(False) # turn off bounds-checking for entire function
     @cython.wraparound(False)  # turn off negative index wrapping for entire function
-    cdef bint simulate(self,isodd:cython.bint) nogil:
+    cdef void simulate(self,isodd:cython.bint) nogil:
         #on ODD: [:,:,1]->[:,:,0], reverse on non ODD
         #return true if at least one cell is alive
 
@@ -238,8 +241,6 @@ cdef class chunk:
                                 )
                 self.memview[x,y,1-isodd] = simulate_one(cells)
 
-    def py_direct_simulate(self,isodd:bool):
-        self.simulate(isodd)
 
 def setchunksize(size:int):
     """set chunk size. Must be called when no chunk is defined, and before defining any or expect weird crashs"""
@@ -256,7 +257,7 @@ def setchunksize(size:int):
 
 chunks:dict[tuple,chunk]={}
 
-cdef void _new_chunk(x:int,y:int,isodd:bool=False,start:np.array=None):
+cdef void new_chunk(x:int,y:int,isodd:bool=False,cnp.ndarray start=None):
     global chunks
     up:chunk=chunks[(x,y-1)] if (x,y-1) in chunks else None
     down:chunk=chunks[(x,y+1)] if (x,y+1) in chunks else None
@@ -267,9 +268,15 @@ cdef void _new_chunk(x:int,y:int,isodd:bool=False,start:np.array=None):
     downleft:chunk=chunks[(x-1,y+1)] if (x-1,y+1) in chunks else None
     downright:chunk=chunks[(x+1,y+1)] if (x+1,y+1) in chunks else None
 
-    newch=chunk(up,down,right,left,upleft,upright,downleft,downright)
+    arr:np.array=None
+
+    if start!=None:
+        arr=np.zeros((chunksize,chunksize,2),DTYPE)
+        arr[:,:,isodd]=start
+
+    newch=chunk(up,down,right,left,upleft,upright,downleft,downright,arr)
     chunks[(x,y)]=newch
-    
+
     if up!=None:
         up.add_voisins(down=newch)
     if down!=None:
@@ -287,7 +294,9 @@ cdef void _new_chunk(x:int,y:int,isodd:bool=False,start:np.array=None):
     if downright!=None:
         downright.add_voisins(upleft=newch)
 
-def start(arr:np.array=np.array([])) -> None:
+def start(arr:np.ndarray) -> None:
     """reinit and start a new simulation with given start simulation"""
     global chunks
     chunks={}
+    for i in range(arr.shape[0]//chunksize):
+        pass
