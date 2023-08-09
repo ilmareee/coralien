@@ -62,12 +62,12 @@ cdef DTYPE_t simulate_one(cells_view cells) nogil:
             alives+=1
 
     if cells.center==0: # cell is empty
-        if alives==3 and deads<=3:
+        if alives==3 and deads<=5:
             return 1
         else:
             return 0
     else: #cell is alive
-        if alives>3 or alives<2 or deads>3:
+        if alives>5 or alives<2 or deads>5:
             return 2
         else:
             return 1
@@ -297,7 +297,7 @@ cdef class chunk:
                                 if (self.posx+1, self.posy+1) not in chunks:
                                     new_chunk(self.posx+1, self.posy+1)
     def getimg(self,isodd:int) -> QImage:
-        img=Image.fromarray(self.nparray[:,:,isodd],mode='P')
+        img=Image.fromarray(self.nparray[:,:,isodd].T,mode='P')
         img.putpalette(palette)
         return ImageQt(img)
 
@@ -360,8 +360,9 @@ cdef void new_chunk(x:int,y:int,isodd:short=0,cnp.ndarray start=None):
 def start(arr:np.ndarray) -> None:
     """reinit and start a new simulation with given start situation
     start situation must be of a size multiple of chunksize (or border will be avoided)"""
-    global chunks
+    global chunks,chunklist
     chunks={}
+    chunklist=[]
     new_chunk(-1,-1)
     for i in range(arr.shape[0]//chunksize):
         new_chunk(i,-1)

@@ -15,6 +15,12 @@ except ModuleNotFoundError as e:
         print("\nle module PySide6 devrait être installé pour que ce programme puisse fonctionner, lisez README.md pour plus de détails", file=sys.stderr)
     raise e
 
+#setting up the simulation
+try:
+    from . import cy_sim
+except ImportError as e:
+    print("You must compile the cy_sim module in order to use the Coralien app. Please see README.md for details")
+    raise(e)
 
 #main Qt loop
 app: QApplication = QApplication(sys.argv)
@@ -33,6 +39,9 @@ def warn(warning:str,gravity:int)->None:
         else:
             print(warning)
 
+def reinit() -> None:
+    cy_sim.start(np.random.randint(0,2,(settings["sim.chunk_size"],settings["sim.chunk_size"]),dtype=np.int8))
+    rendu._generation = 0
 
 ###Main windows configuration
 #yes, there will be only one instance of this windows, but the class is nescessary to ovverride some method (such as closeEvent)
@@ -52,7 +61,7 @@ class Main_window(QWidget):
         self._cbarl=QHBoxLayout()
         self._controlbar.setLayout(self._cbarl)
         
-        for name,function in (("next",rendu.nextgen),("next*10",partial(rendu.nextgen,generations=10))):
+        for name,function in (("next",rendu.nextgen),("next*10",partial(rendu.nextgen,generations=10)),("reinitialize simulation", reinit)):
             self.button.append(QPushButton(name))
             self.button[-1].clicked.connect(function)
             self._cbarl.addWidget(self.button[-1])
@@ -64,16 +73,8 @@ class Main_window(QWidget):
         if settings["logging"]>=3:
             print("initializing main windows complete")
 
-
 MainWin:QWidget=Main_window()
 MainWin.show()
 
-#setting up the simulation
-try:
-    from . import cy_sim
-except ImportError as e:
-    print("You must compile the cy_sim module in order to use the Coralien app. Please see README.md for details")
-    raise(e)
-
 cy_sim.setchunksize(settings["sim.chunk_size"])
-cy_sim.start(np.random.randint(0,2,(settings["sim.chunk_size"],settings["sim.chunk_size"]),dtype=np.int8))
+reinit()
