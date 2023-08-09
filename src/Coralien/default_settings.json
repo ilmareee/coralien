@@ -1,9 +1,17 @@
 {
   "affichage": {
-    "warn":true
+    "warn":true,
+    "controles": {
+      "sensibilite": 10,
+      "droite":     ["D"],
+      "gauche":     ["Q"],
+      "monter":     ["Z"],
+      "descendre":  ["S"]
+    }
   },
   "sim": {
-    "chunk_size":16
+    "chunk_size":16,
+    "fps":10
   },
   "logging": 2
   

@@ -24,9 +24,13 @@ from . import cy_sim
 
 
 _generation:int=0
+
+transformer:QTransform=QTransform()
 class Renderer(QWidget):
     def paintEvent(self, event: QPaintEvent) -> None:
         painter=QPainter(self)
+        painter.translate(self.rect().center())
+        painter.setTransform(transformer,combine=True)
         for pos,chunk in cy_sim.chunks.items():
             x,y=pos
             x*=cy_sim.chunksize

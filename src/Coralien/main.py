@@ -15,7 +15,7 @@ except ModuleNotFoundError as e:
         print("\nle module PySide6 devrait être installé pour que ce programme puisse fonctionner, lisez README.md pour plus de détails", file=sys.stderr)
     raise e
 
-#setting up the simulation
+
 try:
     from . import cy_sim
 except ImportError as e:
@@ -39,9 +39,16 @@ def warn(warning:str,gravity:int)->None:
         else:
             print(warning)
 
+#setting up the simulation
 def reinit() -> None:
     cy_sim.start(np.random.randint(0,2,(settings["sim.chunk_size"],settings["sim.chunk_size"]),dtype=np.int8))
     rendu._generation = 0
+    rendu.transformer=QTransform(2,0,0,
+                                 0,2,0,
+                                 0,0,1)
+
+cy_sim.setchunksize(settings["sim.chunk_size"])
+reinit()
 
 ###Main windows configuration
 #yes, there will be only one instance of this windows, but the class is nescessary to ovverride some method (such as closeEvent)
@@ -61,7 +68,10 @@ class Main_window(QWidget):
         self._cbarl=QHBoxLayout()
         self._controlbar.setLayout(self._cbarl)
         
-        for name,function in (("next",rendu.nextgen),("next*10",partial(rendu.nextgen,generations=10)),("reinitialize simulation", reinit)):
+        self.timer: QTimer = QTimer(self)
+        
+        for name,function in (("next",rendu.nextgen),("next*10",partial(rendu.nextgen,generations=10)),
+                              ("start automatic simulation",self.timer.start),("stop autosim", self.timer.stop),("reinitialize simulation", reinit)):
             self.button.append(QPushButton(name))
             self.button[-1].clicked.connect(function)
             self._cbarl.addWidget(self.button[-1])
@@ -70,11 +80,56 @@ class Main_window(QWidget):
         self.layout().addWidget(self._controlbar)
         self.layout().addWidget(rendu.rendu)
         
+        self.timer.setInterval(1/settings["sim.fps"]*1000)
+        self.timer.timeout.connect(rendu.nextgen)
+        
+        self.contsens=settings["affichage.controles.sensibilite"]
+        self.controles: dict[str, list[QKeySequence]]={
+            "droite":    [QKeySequence(i) for i in settings["affichage.controles.droite"]],
+            "gauche":    [QKeySequence(i) for i in settings["affichage.controles.gauche"]],
+            "monter":    [QKeySequence(i) for i in settings["affichage.controles.monter"]],
+            "descendre":    [QKeySequence(i) for i in settings["affichage.controles.descendre"]],
+        }
+        
+        
         if settings["logging"]>=3:
             print("initializing main windows complete")
+    
+    def keyPressEvent(self, event) -> None:
+        """ Modifie l'emplacement rendu.
+
+        Args:
+            event (class 'PySide6.QtGui.QKeyEvent'): Touche du clavier appuyée.
+        """
+         
+        if event.keyCombination().toCombined() in self.controles["droite"]:
+            rendu.transformer.translate(self.contsens,0)
+        if event.keyCombination().toCombined() in self.controles["gauche"]:
+            rendu.transformer.translate(-self.contsens,0)
+        if event.keyCombination().toCombined() in self.controles["monter"]:
+            rendu.transformer.translate(0,-self.contsens)
+        if event.keyCombination().toCombined() in self.controles["descendre"]:
+            rendu.transformer.translate(0,self.contsens)
+        rendu._renderer.repaint()
+        
+    def wheelEvent(self, event):
+        """Sert à zoom / dézoom.
+
+        Args:
+            event (class 'PySide6.QtGui.QWheelEvent'): Evenement, ici molette de la souris.
+        """
+        y=event.angleDelta().y()
+        if y > 100:
+            scale=1.3
+            
+        elif y<-100:
+            scale=1/1.3
+        elif y>0:
+            scale=1+y/100*0.3
+        else:
+            scale=1/(1-y/100*0.3)
+        rendu.transformer.scale(scale,scale)
+        rendu._renderer.repaint()
 
 MainWin:QWidget=Main_window()
 MainWin.show()
-
-cy_sim.setchunksize(settings["sim.chunk_size"])
-reinit()
