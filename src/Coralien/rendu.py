@@ -1,5 +1,6 @@
 import sys
 from PySide6.QtCore import *
+import PySide6.QtGui
 from PySide6.QtWidgets import *
 from PySide6.QtGui import *
 
@@ -20,15 +21,30 @@ except:
 
 from . import cy_sim
 
-cy_sim.setchunksize(settings["sim.chunk_size"])
 
-class ZoneDeRendu(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.generation:int=0
-        self.setLayout(QGridLayout())
-    def nextgen(self,generations:int=1):
-        self.generation+=generations
+
+_generation:int=0
+class Renderer(QWidget):
+    def paintEvent(self, event: QPaintEvent) -> None:
+        painter=QPainter(self)
+        for pos,chunk in cy_sim.chunks.items():
+            x,y=pos
+            x*=cy_sim.chunksize
+            y*=cy_sim.chunksize
+            painter.drawImage(x,y,chunk.getimg(_generation%2))
+rendu=QWidget()
+_renderer=Renderer()
+rendu.setLayout(QVBoxLayout())
+_genlabel=QLabel("generation: 0")
+rendu.layout().addWidget(_genlabel)
+rendu.layout().addWidget(_renderer)
+
+
+def nextgen(*_,generations:int=1) -> None:
+    for i in range(generations):
+        global _generation
+        cy_sim.simulate(_generation%2)
+        _generation+=1
+    _renderer.repaint()
+    _genlabel.setText(f"generation: {_generation}")
     
-    def redraw(self):
-        pass

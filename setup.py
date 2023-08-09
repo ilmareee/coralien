@@ -22,7 +22,7 @@ for folder, folders, files in os.walk("lib"):
 
 cppgravilib: list[Extension] = [Extension("Coralien.cy_sim", sources=sourcesfiles, include_dirs=[
                                           './lib/',numpy.get_include()],define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
-                                          language="c")]
+                                          language="C++")]
 
 
 class build_ext_subclass(build_ext):

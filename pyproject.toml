@@ -14,7 +14,8 @@ dynamic = ["version"]
 dependencies = [
     "cython",
     "pyside6",
-    "numpy"
+    "numpy",
+    "Pillow"
 ]
 
 [tool.setuptools_scm]
