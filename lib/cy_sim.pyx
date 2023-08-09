@@ -14,11 +14,11 @@ cnp.import_array()
 DTYPE = np.int8
 ctypedef cnp.int8_t DTYPE_t
 
-_palarr:list[int]=[0,0,0,0,     #RGBA color palette: empty, alive then dead 
-                   255,0,0,255,
-                   0,255,255,255]
+_palarr:list[int]=[0,0,0,     #RGB color palette: empty, alive then dead 
+                   255,0,0,
+                   0,255,255]
 
-palette=ImagePalette(mode='RGBA',palette=_palarr)
+palette=ImagePalette(mode='RGB',palette=_palarr)
 
 ctypedef struct cells_view :
     DTYPE_t center

@@ -5,6 +5,7 @@ Comme son nom l'indique, ceci est un projet de coralien.
 
 Les librairies utilisées sont :
  - PySide6 : pour le GUI.
+ - Pillow : Pour obtenir le rendu de la grille de jeu.
  - setuptools et setuptools_scm : pour le build des wheels et du cython.
  - numpy : pour avoir des tableaux rapide d'accès.
  - cython : pour la possibilité de compiler en C afin de rendre l'exécution plus rapide.

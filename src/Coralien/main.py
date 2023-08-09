@@ -52,7 +52,7 @@ class Main_window(QWidget):
         self._cbarl=QHBoxLayout()
         self._controlbar.setLayout(self._cbarl)
         
-        for name,function in (("next",rendu.nextgen),("next*10",partial(rendu.nextgen,generation=10))):
+        for name,function in (("next",rendu.nextgen),("next*10",partial(rendu.nextgen,generations=10))):
             self.button.append(QPushButton(name))
             self.button[-1].clicked.connect(function)
             self._cbarl.addWidget(self.button[-1])
@@ -76,4 +76,4 @@ except ImportError as e:
     raise(e)
 
 cy_sim.setchunksize(settings["sim.chunk_size"])
-cy_sim.start(np.random.randint(0,3,(settings["sim.chunk_size"],settings["sim.chunk_size"]),dtype=np.int8))
+cy_sim.start(np.random.randint(0,2,(settings["sim.chunk_size"],settings["sim.chunk_size"]),dtype=np.int8))
