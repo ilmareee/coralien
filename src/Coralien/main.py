@@ -120,14 +120,14 @@ class Main_window(QWidget):
         """
         y=event.angleDelta().y()
         if y > 100:
-            scale=1.3
+            scale=1+self.contsens/100
             
         elif y<-100:
-            scale=1/1.3
+            scale=1/(1+self.contsens/100)
         elif y>0:
-            scale=1+y/100*0.3
+            scale=1+y/1000*self.contsens
         else:
-            scale=1/(1-y/100*0.3)
+            scale=1/(1-y/1000*self.contsens)
         rendu.transformer.scale(scale,scale)
         rendu._renderer.repaint()
 
