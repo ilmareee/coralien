@@ -6,11 +6,11 @@ import os
 import numpy
 
 Options.language_level = 3
-copt: dict[str, list[str]] = {# 'unix': ['-std=c2x', '-g', '-Og', '-pthread', '-ffast-math','-fopenmp'],
-                              'unix': ['-std=c2x','-O3','-pthread','-ffast-math','-fopenmp']  ,
-                              'mingw32': ['-std=c2x', '-O3', '-pthread', '-ffast-math','-fopenmp'],
-                              'mingw64': ['-std=c2x', '-O3', '-pthread', '-ffast-math','-fopenmp'],
-                              'msvc': ['/std:c20', '/cgthreads8', '/O2', '/GL','/openmp'],
+copt: dict[str, list[str]] = {'unix': ['-std=gnu++20', '-g', '-Og', '-pthread', '-ffast-math','-fopenmp'],
+                              # 'unix': ['-std=gnu++20','-O3','-pthread','-ffast-math','-fopenmp']  ,
+                              'mingw32': ['-std=gnu++20', '-O3', '-pthread', '-ffast-math','-fopenmp'],
+                              'mingw64': ['-std=gnu++20', '-O3', '-pthread', '-ffast-math','-fopenmp'],
+                              'msvc': ['/std:c++20', '/cgthreads8', '/O2', '/GL','/openmp'],
                               # 'cygiwin' : []
                               }
 sourcesfiles: list[str] = []

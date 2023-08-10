@@ -6,4 +6,5 @@ __pycache__/
 /src/Coralien/settings.json
 /src/Coralien/cy_sim*
 /lib/cy_sim.c
+/lib/cy_sim.cpp
 /lib/cy_sim.html

@@ -42,10 +42,7 @@ def warn(warning:str,gravity:int)->None:
 #setting up the simulation
 def reinit() -> None:
     cy_sim.start(np.random.randint(0,2,(settings["sim.chunk_size"],settings["sim.chunk_size"]),dtype=np.int8))
-    rendu._generation = 0
-    rendu.transformer=QTransform(2,0,0,
-                                 0,2,0,
-                                 0,0,1)
+    rendu.reinitrendu()
 
 cy_sim.setchunksize(settings["sim.chunk_size"])
 reinit()

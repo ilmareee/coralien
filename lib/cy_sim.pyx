@@ -1,13 +1,21 @@
 # cython: nonecheck=False
 # cython: language_level=3str
-from PySide6.QtGui import QImage
+
+# distutils: language = c++
+
+from re import T
+from PySide6.QtGui import QPixmap
+from cython.operator import dereference
 import numpy as np
 cimport numpy as cnp
 cimport cython
+from cpython cimport PyObject
 from cython.parallel import prange
 from PIL import Image
 from PIL.ImagePalette import ImagePalette
 from PIL.ImageQt import ImageQt
+from libcpp.vector cimport vector
+
 
 
 cnp.import_array()
@@ -90,8 +98,10 @@ cdef class chunk:
     cdef DTYPE_t[:] upright
     cdef DTYPE_t[:] downleft
     cdef DTYPE_t[:] downright
-    posx:int
-    posy:int
+    cdef bint active
+    posx:cython.py_int
+    posy:cython.py_int
+    cached_pixmap:QPixmap
 
     def __init__(self,posx:int,posy:int,up:chunk=None,down:chunk=None,right:chunk=None,left:chunk=None,upleft:chunk=None,upright:chunk=None,downleft:chunk=None,downright:chunk=None,startarr:np.array=None) -> None:
 
@@ -113,6 +123,7 @@ cdef class chunk:
         self.downleft=zeros_arr_corner
         self.downright=zeros_arr_corner
         self.add_voisins(up,down,right,left,upleft,upright,downleft,downright)
+        self.active = True
 
     @cython.boundscheck(False) # turn off bounds-checking for entire function
     def add_voisins(self,up:chunk=None,down:chunk=None,right:chunk=None,left:chunk=None,upleft:chunk=None,upright:chunk=None,downleft:chunk=None,downright:chunk=None) -> None:
@@ -132,12 +143,16 @@ cdef class chunk:
             self.downleft=downleft.memview[-1,0,:]
         if downright is not None:
             self.downright=downright.memview[0,0,:]
+        self.active = True
  
     @cython.boundscheck(False) # turn off bounds-checking for entire function
     @cython.wraparound(False)  # turn off negative index wrapping for entire function
     cdef void simulate(self,isodd:short) nogil:
         #on ODD: [:,:,1]->[:,:,0], reverse on non ODD
         #return true if at least one cell is alive
+        if not self.active:
+            return
+        self.active=False
 
         cdef short x,y
         cdef DTYPE_t newv
@@ -157,7 +172,10 @@ cdef class chunk:
                                 self.memview[x+1,y+1,isodd],
                                 self.memview[x+1,y-1,isodd]
                                 )
-                        self.memview[x,y,1-isodd] = simulate_one(cells)
+                        newval=simulate_one(cells)
+                        self.memview[x,y,1-isodd] = newval
+                        if newval!=cells.center:
+                            self.active=True
                     elif y==0:
                         cells=new_cells_view( # up
                                 self.memview[x,y,isodd],
@@ -170,11 +188,17 @@ cdef class chunk:
                                 self.memview[x+1,y+1,isodd],
                                 self.up[x+1,isodd]
                                 )
-                        self.memview[x,y,1-isodd] = simulate_one(cells)
-                        if self.memview[x,y,1-isodd]==1 and self.memview[x,y,isodd]==0:
+                        newval=simulate_one(cells)
+                        self.memview[x,y,1-isodd] = newval
+                        if newval!=cells.center:
                             with gil:
-                                if (self.posx, self.posy-1) not in chunks:
+                                target:chunk=chunks.get((self.posx, self.posy-1))
+                                if target==None :
                                     new_chunk(self.posx, self.posy-1)
+                                else :
+                                    target.active=True
+                            self.active=True
+
                     else:
                         cells=new_cells_view( # low
                                 self.memview[x,y,isodd],
@@ -187,14 +211,19 @@ cdef class chunk:
                                 self.down[x+1,isodd],
                                 self.memview[x+1,y-1,isodd]
                                 )
-                        self.memview[x,y,1-isodd] = simulate_one(cells)
-                        if self.memview[x,y,1-isodd]==1 and self.memview[x,y,isodd]==0:
+                        newval=simulate_one(cells)
+                        self.memview[x,y,1-isodd] = newval
+                        if newval!=cells.center:
                             with gil:
-                                if (self.posx, self.posy+1) not in chunks:
+                                target:chunk=chunks.get((self.posx, self.posy+1))
+                                if target==None:
                                     new_chunk(self.posx, self.posy+1)
+                                else:
+                                    target.active=True
+                            self.active=True
                 elif x==0:
                     if y!=0 and y!=cchunksize-1:
-                        cells=new_cells_view( # l
+                        cells=new_cells_view( # lef
                                 self.memview[x,y,isodd],
                                 self.memview[x,y-1,isodd],
                                 self.left[y,isodd],
@@ -205,13 +234,18 @@ cdef class chunk:
                                 self.memview[x+1,y+1,isodd],
                                 self.memview[x+1,y-1,isodd]
                                 )
-                        self.memview[x,y,1-isodd] = simulate_one(cells)
-                        if self.memview[x,y,1-isodd]==1 and self.memview[x,y,isodd]==0:
+                        newval=simulate_one(cells)
+                        self.memview[x,y,1-isodd] = newval
+                        if newval!=cells.center:
                             with gil:
-                                if (self.posx-1, self.posy) not in chunks:
+                                target:chunk=chunks.get((self.posx-1, self.posy))
+                                if target==None:
                                     new_chunk(self.posx-1, self.posy)
+                                else:
+                                    target.active=True
+                            self.active=True
                     elif y==0:
-                        cells=new_cells_view( # upl
+                        cells=new_cells_view( # uplef
                                 self.memview[x,y,isodd],
                                 self.up[x,isodd],
                                 self.left[y,isodd],
@@ -222,11 +256,23 @@ cdef class chunk:
                                 self.memview[x+1,y+1,isodd],
                                 self.up[x+1,isodd]
                                 )
-                        self.memview[x,y,1-isodd] = simulate_one(cells)
-                        if self.memview[x,y,1-isodd]==1 and self.memview[x,y,isodd]==0:
+                        newval=simulate_one(cells)
+                        self.memview[x,y,1-isodd] = newval
+                        if newval!=cells.center:
                             with gil:
-                                if (self.posx-1, self.posy-1) not in chunks:
+                                target=chunks.get((self.posx-1, self.posy-1))
+                                if target==None:
                                     new_chunk(self.posx-1, self.posy-1)
+                                else:
+                                    target.active=True
+                                target=chunks.get((self.posx, self.posy-1))
+                                if target!=None:
+                                    target.active=True
+                                target=chunks.get((self.posx-1, self.posy))
+                                if target!=None:
+                                    target.active=True
+                            self.active=True
+
                     else:
                         cells=new_cells_view( # lowl
                                 self.memview[x,y,isodd],
@@ -239,11 +285,22 @@ cdef class chunk:
                                 self.down[x+1,isodd],
                                 self.memview[x+1,y-1,isodd]
                                 )
-                        self.memview[x,y,1-isodd] = simulate_one(cells)
-                        if self.memview[x,y,1-isodd]==1 and self.memview[x,y,isodd]==0:
+                        newval=simulate_one(cells)
+                        self.memview[x,y,1-isodd] = newval
+                        if newval!=cells.center:
                             with gil:
-                                if (self.posx-1, self.posy+1) not in chunks:
+                                target=chunks.get((self.posx-1, self.posy+1))
+                                if target==None:
                                     new_chunk(self.posx-1, self.posy+1)
+                                else:
+                                    target.active=True
+                                target=chunks.get((self.posx, self.posy+1))
+                                if target!=None:
+                                    target.active=True
+                                target=chunks.get((self.posx-1, self.posy))
+                                if target!=None:
+                                    target.active=True
+                            self.active=True
                 else:
                     if y!=0 and y!=cchunksize-1:
                         cells=new_cells_view( # r
@@ -257,11 +314,16 @@ cdef class chunk:
                                 self.right[y+1,isodd],
                                 self.right[y-1,isodd]
                                 )
-                        self.memview[x,y,1-isodd] = simulate_one(cells)
-                        if self.memview[x,y,1-isodd]==1 and self.memview[x,y,isodd]==0:
+                        newval=simulate_one(cells)
+                        self.memview[x,y,1-isodd] = newval
+                        if newval!=cells.center:
                             with gil:
-                                if (self.posx+1, self.posy) not in chunks:
+                                target=chunks.get((self.posx+1, self.posy))
+                                if target==None:
                                     new_chunk(self.posx+1, self.posy)
+                                else:
+                                    target.active=True
+                            self.active=True
                     elif y==0:
                         cells=new_cells_view( #upr
                                 self.memview[x,y,isodd],
@@ -274,11 +336,22 @@ cdef class chunk:
                                 self.right[y+1,isodd],
                                 self.upright[isodd]
                                 )
-                        self.memview[x,y,1-isodd] = simulate_one(cells)
-                        if self.memview[x,y,1-isodd]==1 and self.memview[x,y,isodd]==0:
+                        newval=simulate_one(cells)
+                        self.memview[x,y,1-isodd] = newval
+                        if newval!=cells.center:
                             with gil:
-                                if (self.posx+1, self.posy-1) not in chunks:
+                                target=chunks.get((self.posx+1, self.posy-1))
+                                if target==None:
                                     new_chunk(self.posx+1, self.posy-1)
+                                else:
+                                    target.active=True
+                                target=chunks.get((self.posx, self.posy-1))
+                                if target!=None:
+                                    target.active=True
+                                target=chunks.get((self.posx+1, self.posy))
+                                if target!=None:
+                                    target.active=True
+                            self.active=True
                     else:
                         cells=new_cells_view( # lowr
                                 self.memview[x,y,isodd],
@@ -291,15 +364,32 @@ cdef class chunk:
                                 self.downright[isodd],
                                 self.right[y-1,isodd]
                                 )
-                        self.memview[x,y,1-isodd] = simulate_one(cells)
-                        if self.memview[x,y,1-isodd]==1 and self.memview[x,y,isodd]==0:
+                        newval=simulate_one(cells)
+                        self.memview[x,y,1-isodd] = newval
+                        if newval!=cells.center:
                             with gil:
-                                if (self.posx+1, self.posy+1) not in chunks:
+                                target=chunks.get((self.posx+1, self.posy+1) )
+                                if target==None:
                                     new_chunk(self.posx+1, self.posy+1)
-    def getimg(self,isodd:int) -> QImage:
+                                else:
+                                    target.active=True
+                                target=chunks.get((self.posx, self.posy+1))
+                                if target!=None:
+                                    target.active=True
+                                target=chunks.get((self.posx+1, self.posy))
+                                if target!=None:
+                                    target.active=True
+                            self.active=True
+
+
+    def getimg(self,isodd:int) -> QPixmap:
+        if not self.active:
+            return self.cached_pixmap
         img=Image.fromarray(self.nparray[:,:,isodd].T,mode='P')
         img.putpalette(palette)
-        return ImageQt(img)
+        qtimg=QPixmap(ImageQt(img))
+        self.cached_pixmap=qtimg
+        return qtimg
 
 
 def setchunksize(size:int):
@@ -316,8 +406,8 @@ def setchunksize(size:int):
 
 
 chunks:dict[tuple[int,int],chunk]={}
-chunklist:list[chunk]=[]
-
+ctypedef PyObject *PyObjptr
+cdef vector[PyObjptr] *chunkvector
 
 cdef void new_chunk(x:int,y:int,isodd:short=0,cnp.ndarray start=None):
     global chunks
@@ -338,7 +428,7 @@ cdef void new_chunk(x:int,y:int,isodd:short=0,cnp.ndarray start=None):
 
     newch=chunk(x,y,up,down,right,left,upleft,upright,downleft,downright,arr)
     chunks[(x,y)]=newch
-    chunklist.append(newch)
+    chunkvector.push_back(<PyObjptr>newch)
 
     if up is not None:
         up.add_voisins(down=newch)
@@ -360,9 +450,10 @@ cdef void new_chunk(x:int,y:int,isodd:short=0,cnp.ndarray start=None):
 def start(arr:np.ndarray) -> None:
     """reinit and start a new simulation with given start situation
     start situation must be of a size multiple of chunksize (or border will be avoided)"""
-    global chunks,chunklist
+    global chunks,chunkvector
     chunks={}
-    chunklist=[]
+    chunkvector=new vector[PyObjptr](0)
+    print(chunkvector.size())
     new_chunk(-1,-1)
     for i in range(arr.shape[0]//chunksize):
         new_chunk(i,-1)
@@ -375,13 +466,13 @@ def start(arr:np.ndarray) -> None:
     new_chunk(i+1,-1)
     new_chunk(-1,j+1)
     new_chunk(i+1,j+1)
-
+    print(chunkvector.size())
 def simulate(isodd:int) -> None:
     cdef short cisodd=isodd
     cdef int i
-    lenght=len(chunklist)
+    cdef size_t lenght=chunkvector.size()
     for i in prange(0,lenght,nogil=True,schedule='guided'):
         with gil:
-            select:chunk=chunklist[i]
+            select:chunk=<object>dereference(chunkvector)[i]
         select.simulate(cisodd)
     

@@ -35,9 +35,10 @@ class Renderer(QWidget):
             x,y=pos
             x*=cy_sim.chunksize
             y*=cy_sim.chunksize
-            painter.drawImage(x,y,chunk.getimg(_generation%2))
+            painter.drawPixmap(x,y,chunk.getimg(_generation%2))
 rendu=QWidget()
 _renderer=Renderer()
+_renderer.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Expanding)
 rendu.setLayout(QVBoxLayout())
 _genlabel=QLabel("generation: 0")
 rendu.layout().addWidget(_genlabel)
@@ -51,4 +52,13 @@ def nextgen(*_,generations:int=1) -> None:
         _generation+=1
     _renderer.repaint()
     _genlabel.setText(f"generation: {_generation}")
+
+def reinitrendu() -> None:
+    global _generation,transformer
+    _generation = 0
+    transformer=QTransform(2,0,0,
+                           0,2,0,
+                           0,0,1)
+    _genlabel.setText("generation: 0")
+    _renderer.repaint()
     
