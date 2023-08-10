@@ -100,12 +100,12 @@ cdef class chunk:
     cdef DTYPE_t[:] downleft
     cdef DTYPE_t[:] downright
     cdef bint active
-    cdef bint havedrawncached
+    cdef bint havecachedsinceinactive
     posx:py_int
     posy:py_int
     cached_pixmap:QPixmap
 
-    def __init__(self,posx:int,posy:int,up:chunk=None,down:chunk=None,right:chunk=None,left:chunk=None,upleft:chunk=None,upright:chunk=None,downleft:chunk=None,downright:chunk=None,startarr:np.array=None) -> None:
+    def __init__(self,posx:py_int,posy:py_int,up:chunk=None,down:chunk=None,right:chunk=None,left:chunk=None,upleft:chunk=None,upright:chunk=None,downleft:chunk=None,downright:chunk=None,startarr:np.array=None) -> None:
 
         if startarr is None:
             self.nparray=np.zeros((chunksize,chunksize,2),dtype=DTYPE)
@@ -126,7 +126,7 @@ cdef class chunk:
         self.downright=zeros_arr_corner
         self.add_voisins(up,down,right,left,upleft,upright,downleft,downright)
         self.active = True
-        self.havedrawncached=False
+        self.havecachedsinceinactive=False
 
     @cython.boundscheck(False) # turn off bounds-checking for entire function
     def add_voisins(self,up:chunk=None,down:chunk=None,right:chunk=None,left:chunk=None,upleft:chunk=None,upright:chunk=None,downleft:chunk=None,downright:chunk=None) -> None:
@@ -383,22 +383,25 @@ cdef class chunk:
                                 if target!=None:
                                     target.active=True
                             self.active=True
-        if not self.active:
-            img=Image.fromarray(self.nparray[:,:,isodd].T,mode='P') #cache pixmap
-            img.putpalette(palette)
-            qtimg=QPixmap(ImageQt(img))
-            self.cached_pixmap=qtimg
-
+        if self.active and self.havecachedsinceinactive:
+            self.havecachedsinceinactive=False
     def getimg(self,isodd:int) -> QPixmap | None:
         if not self.active:
-            return self.cached_pixmap
+            if not self.havecachedsinceinactive:
+                self.havecachedsinceinactive=True
+                img=Image.fromarray(self.nparray[:,:,isodd].T,mode='P')
+                img.putpalette(palette)
+                qtimg=QPixmap(ImageQt(img))
+                self.cached_pixmap=qtimg
+                return qtimg
+            else:
+                return self.cached_pixmap
         img=Image.fromarray(self.nparray[:,:,isodd].T,mode='P')
         img.putpalette(palette)
-        qtimg=QPixmap(ImageQt(img))
-        return qtimg
+        return QPixmap(ImageQt(img))
 
 
-def setchunksize(size:int):
+def setchunksize(size:py_int):
     """set chunk size. Must be called when no chunk is defined, and before defining any or expect weird crashs"""
     global chunksize,cchunksize,zeros_arr
     if size>=2:
@@ -411,11 +414,11 @@ def setchunksize(size:int):
 
 
 
-chunks:dict[tuple[int,int],chunk]={}
+chunks:dict[tuple[py_int,py_int],chunk]={}
 ctypedef PyObject *PyObjptr
 cdef vector[PyObjptr] *chunkvector
 
-cdef void new_chunk(x:int,y:int,short isodd=0,cnp.ndarray start=None):
+cdef void new_chunk(x:py_int,y:py_int,short isodd=0,cnp.ndarray start=None):
     global chunks
     up:chunk=chunks[(x,y-1)] if (x,y-1) in chunks else None
     down:chunk=chunks[(x,y+1)] if (x,y+1) in chunks else None
@@ -459,7 +462,6 @@ def start(arr:np.ndarray) -> None:
     global chunks,chunkvector
     chunks={}
     chunkvector=new vector[PyObjptr](0)
-    print(chunkvector.size())
     new_chunk(-1,-1)
     for i in range(arr.shape[0]//chunksize):
         new_chunk(i,-1)
@@ -472,7 +474,6 @@ def start(arr:np.ndarray) -> None:
     new_chunk(i+1,-1)
     new_chunk(-1,j+1)
     new_chunk(i+1,j+1)
-    print(chunkvector.size())
 def simulate(isodd:int) -> None:
     cdef short cisodd=isodd
     cdef int i

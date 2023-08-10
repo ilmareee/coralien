@@ -3,7 +3,7 @@
 /src/Coralien.egg-info/
 __pycache__/
 /.vscode/
-/src/Coralien/settings.json
+/src/settings.json
 /src/Coralien/cy_sim*
 /lib/cy_sim.c
 /lib/cy_sim.cpp
