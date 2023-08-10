@@ -101,7 +101,7 @@ cdef class chunk:
     cdef DTYPE_t[:] upright
     cdef DTYPE_t[:] downleft
     cdef DTYPE_t[:] downright
-    cdef bint active
+    cdef short active
     cdef bint havecachedsinceinactive
     posx:py_int
     posy:py_int
@@ -127,7 +127,7 @@ cdef class chunk:
         self.downleft=zeros_arr_corner
         self.downright=zeros_arr_corner
         self.add_neighbours(up,down,right,left,upleft,upright,downleft,downright)
-        self.active = True
+        self.active = 2
         self.havecachedsinceinactive=False
 
     @cython.boundscheck(False) # turn off bounds-checking for entire function
@@ -149,7 +149,7 @@ cdef class chunk:
             self.downleft=downleft.memview[-1,0,:]
         if downright is not None:
             self.downright=downright.memview[0,0,:]
-        self.active = True
+        self.active = 2
  
     @cython.boundscheck(False) # turn off bounds-checking for entire function
     @cython.wraparound(False)  # turn off negative index wrapping for entire function
@@ -158,10 +158,9 @@ cdef class chunk:
 # simulates it's survival and generates a new chunk if necessary
 # when a chunk has no modification, it is considered stable (self.active = false) until one of it's neighbours
 # is modified and turns it active again in order to have a lower number of chunks on wich we do a simulation
-        if not self.active:
-            return
-        self.active=False
-
+        self.active-=1
+        if self.active>0 and self.havecachedsinceinactive:
+            self.havecachedsinceinactive=False
         cdef short x,y
         cdef DTYPE_t newv
         cdef cells_view cells
@@ -183,7 +182,7 @@ cdef class chunk:
                         newval=simulate_one(cells)
                         self.memview[x,y,1-isodd] = newval
                         if newval!=cells.center:
-                            self.active=True
+                            self.active=2
                     elif y==0:
                         cells=new_cells_view( # up
                                 self.memview[x,y,isodd],
@@ -204,8 +203,8 @@ cdef class chunk:
                                 if target==None :
                                     new_chunk(self.posx, self.posy-1)
                                 else :
-                                    target.active=True
-                            self.active=True
+                                    target.active=2
+                            self.active=2
 
                     else:
                         cells=new_cells_view( # low
@@ -227,8 +226,8 @@ cdef class chunk:
                                 if target==None:
                                     new_chunk(self.posx, self.posy+1)
                                 else:
-                                    target.active=True
-                            self.active=True
+                                    target.active=2
+                            self.active=2
                 elif x==0:
                     if y!=0 and y!=cchunksize-1:
                         cells=new_cells_view( # lef
@@ -250,8 +249,8 @@ cdef class chunk:
                                 if target==None:
                                     new_chunk(self.posx-1, self.posy)
                                 else:
-                                    target.active=True
-                            self.active=True
+                                    target.active=2
+                            self.active=2
                     elif y==0:
                         cells=new_cells_view( # uplef
                                 self.memview[x,y,isodd],
@@ -272,14 +271,14 @@ cdef class chunk:
                                 if target==None:
                                     new_chunk(self.posx-1, self.posy-1)
                                 else:
-                                    target.active=True
+                                    target.active=2
                                 target=chunks.get((self.posx, self.posy-1))
                                 if target!=None:
-                                    target.active=True
+                                    target.active=2
                                 target=chunks.get((self.posx-1, self.posy))
                                 if target!=None:
-                                    target.active=True
-                            self.active=True
+                                    target.active=2
+                            self.active=2
 
                     else:
                         cells=new_cells_view( # lowl
@@ -301,14 +300,14 @@ cdef class chunk:
                                 if target==None:
                                     new_chunk(self.posx-1, self.posy+1)
                                 else:
-                                    target.active=True
+                                    target.active=2
                                 target=chunks.get((self.posx, self.posy+1))
                                 if target!=None:
-                                    target.active=True
+                                    target.active=2
                                 target=chunks.get((self.posx-1, self.posy))
                                 if target!=None:
-                                    target.active=True
-                            self.active=True
+                                    target.active=2
+                            self.active=2
                 else:
                     if y!=0 and y!=cchunksize-1:
                         cells=new_cells_view( # r
@@ -330,8 +329,8 @@ cdef class chunk:
                                 if target==None:
                                     new_chunk(self.posx+1, self.posy)
                                 else:
-                                    target.active=True
-                            self.active=True
+                                    target.active=2
+                            self.active=2
                     elif y==0:
                         cells=new_cells_view( #upr
                                 self.memview[x,y,isodd],
@@ -352,14 +351,14 @@ cdef class chunk:
                                 if target==None:
                                     new_chunk(self.posx+1, self.posy-1)
                                 else:
-                                    target.active=True
+                                    target.active=2
                                 target=chunks.get((self.posx, self.posy-1))
                                 if target!=None:
-                                    target.active=True
+                                    target.active=2
                                 target=chunks.get((self.posx+1, self.posy))
                                 if target!=None:
-                                    target.active=True
-                            self.active=True
+                                    target.active=2
+                            self.active=2
                     else:
                         cells=new_cells_view( # lowr
                                 self.memview[x,y,isodd],
@@ -380,20 +379,19 @@ cdef class chunk:
                                 if target==None:
                                     new_chunk(self.posx+1, self.posy+1)
                                 else:
-                                    target.active=True
+                                    target.active=2
                                 target=chunks.get((self.posx, self.posy+1))
                                 if target!=None:
-                                    target.active=True
+                                    target.active=2
                                 target=chunks.get((self.posx+1, self.posy))
                                 if target!=None:
-                                    target.active=True
-                            self.active=True
-        if self.active and self.havecachedsinceinactive:
-            self.havecachedsinceinactive=False
+                                    target.active=2
+                            self.active=2
+        
     def getimg(self,isodd:int) -> QPixmap | None:
 # transforms a chunk into an image we can display
 # when a chunk is not active the image is cached
-        if not self.active:
+        if self.active==0:
             if not self.havecachedsinceinactive:
                 self.havecachedsinceinactive=True
                 img=Image.fromarray(self.nparray[:,:,isodd].T,mode='P')
@@ -490,5 +488,7 @@ def simulate(isodd:int) -> None:
     for i in prange(0,lenght,nogil=True,schedule='guided'):
         with gil:
             select:chunk=<object>dereference(chunkvector)[i]
-        select.simulate(cisodd)
+            if select.active>0:
+                with nogil:
+                    select.simulate(cisodd)
 
