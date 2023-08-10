@@ -99,6 +99,7 @@ cdef class chunk:
     cdef DTYPE_t[:] downleft
     cdef DTYPE_t[:] downright
     cdef bint active
+    cdef bint havedrawncached
     posx:cython.py_int
     posy:cython.py_int
     cached_pixmap:QPixmap
@@ -124,6 +125,7 @@ cdef class chunk:
         self.downright=zeros_arr_corner
         self.add_voisins(up,down,right,left,upleft,upright,downleft,downright)
         self.active = True
+        self.havedrawncached=False
 
     @cython.boundscheck(False) # turn off bounds-checking for entire function
     def add_voisins(self,up:chunk=None,down:chunk=None,right:chunk=None,left:chunk=None,upleft:chunk=None,upright:chunk=None,downleft:chunk=None,downright:chunk=None) -> None:
@@ -380,15 +382,18 @@ cdef class chunk:
                                 if target!=None:
                                     target.active=True
                             self.active=True
+        if not self.active:
+            img=Image.fromarray(self.nparray[:,:,isodd].T,mode='P') #cache pixmap
+            img.putpalette(palette)
+            qtimg=QPixmap(ImageQt(img))
+            self.cached_pixmap=qtimg
 
-
-    def getimg(self,isodd:int) -> QPixmap:
+    def getimg(self,isodd:int) -> QPixmap | None:
         if not self.active:
             return self.cached_pixmap
         img=Image.fromarray(self.nparray[:,:,isodd].T,mode='P')
         img.putpalette(palette)
         qtimg=QPixmap(ImageQt(img))
-        self.cached_pixmap=qtimg
         return qtimg
 
 
@@ -427,7 +432,6 @@ cdef void new_chunk(x:int,y:int,isodd:short=0,cnp.ndarray start=None):
         arr[:,:,isodd]=start
 
     newch=chunk(x,y,up,down,right,left,upleft,upright,downleft,downright,arr)
-    newch.getimg(isodd)
     chunks[(x,y)]=newch
     chunkvector.push_back(<PyObjptr>newch)
 
