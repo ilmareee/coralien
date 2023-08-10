@@ -6,8 +6,8 @@ import os
 import numpy
 
 Options.language_level = 3
-copt: dict[str, list[str]] = {'unix': ['-std=gnu++20', '-g', '-Og', '-pthread', '-ffast-math','-fopenmp'],
-                              # 'unix': ['-std=gnu++20','-O3','-pthread','-ffast-math','-fopenmp']  ,
+copt: dict[str, list[str]] = {# 'unix': ['-std=gnu++20', '-g', '-Og', '-pthread', '-ffast-math','-fopenmp'],
+                              'unix': ['-std=gnu++20','-O3','-pthread','-ffast-math','-fopenmp']  ,
                               'mingw32': ['-std=gnu++20', '-O3', '-pthread', '-ffast-math','-fopenmp'],
                               'mingw64': ['-std=gnu++20', '-O3', '-pthread', '-ffast-math','-fopenmp'],
                               'msvc': ['/std:c++20', '/cgthreads8', '/O2', '/GL','/openmp'],
@@ -30,7 +30,7 @@ class build_ext_subclass(build_ext):
         compiler = self.compiler.compiler_type
         print("using compiler:", compiler,end="")
         if compiler in copt.keys():
-            print("which is a known compiler, applying extra args:\n",
+            print(" which is a known compiler, applying extra args:\n",
                   copt[compiler])
             for e in self.extensions:
                 e.extra_compile_args = copt[compiler]
@@ -45,3 +45,4 @@ setup(
     ext_modules=cythonize(cppgravilib),
     cmdclass={'build_ext': build_ext_subclass}
 )
+

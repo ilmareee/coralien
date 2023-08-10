@@ -4,7 +4,7 @@ import sys
 import os
 from typing import NoReturn
 
-# parsing de certaines options passées à l'appel
+# parsing of many options we can chose to use
 if "--licence" in sys.argv:
     with open("LICENSE", encoding="utf-8") as license:
         print(license.read())
@@ -40,3 +40,4 @@ def launch_app() -> NoReturn:
     if settings["logging"]>=3:
         print("No error, proceding to launch the QT app")
     sys.exit(main.app.exec_())
+

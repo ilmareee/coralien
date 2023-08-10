@@ -23,7 +23,7 @@ cnp.import_array()
 DTYPE = np.int8
 ctypedef cnp.int8_t DTYPE_t
 
-_palarr:list[int]=[0,0,0,     #RGB color palette: empty, alive then dead 
+_palarr:list[int]=[0,0,0,     #RGB color palette: empty, alive then dead
                    255,0,0,
                    0,255,255]
 
@@ -57,9 +57,11 @@ cdef cells_view new_cells_view(DTYPE_t center,DTYPE_t up,DTYPE_t left,DTYPE_t do
 @cython.boundscheck(False) # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
 cdef DTYPE_t simulate_one(cells_view cells) nogil:
+# main function that we'll use : takes one cell and the view of it's neighbours
+# and returns the next state of the cell (empty, alive or dead)
     if cells.center==2: #cell is dead
         return 2
-    
+
     cdef short alives=0
     cdef short deads=0
     cdef short x
@@ -106,7 +108,7 @@ cdef class chunk:
     cached_pixmap:QPixmap
 
     def __init__(self,posx:py_int,posy:py_int,up:chunk=None,down:chunk=None,right:chunk=None,left:chunk=None,upleft:chunk=None,upright:chunk=None,downleft:chunk=None,downright:chunk=None,startarr:np.array=None) -> None:
-
+# initialisation of a new chunk
         if startarr is None:
             self.nparray=np.zeros((chunksize,chunksize,2),dtype=DTYPE)
         else:
@@ -124,12 +126,13 @@ cdef class chunk:
         self.upright=zeros_arr_corner
         self.downleft=zeros_arr_corner
         self.downright=zeros_arr_corner
-        self.add_voisins(up,down,right,left,upleft,upright,downleft,downright)
+        self.add_neighbours(up,down,right,left,upleft,upright,downleft,downright)
         self.active = True
         self.havecachedsinceinactive=False
 
     @cython.boundscheck(False) # turn off bounds-checking for entire function
-    def add_voisins(self,up:chunk=None,down:chunk=None,right:chunk=None,left:chunk=None,upleft:chunk=None,upright:chunk=None,downleft:chunk=None,downright:chunk=None) -> None:
+    def add_neighbours(self,up:chunk=None,down:chunk=None,right:chunk=None,left:chunk=None,upleft:chunk=None,upright:chunk=None,downleft:chunk=None,downright:chunk=None) -> None:
+# allows for a chunk to be placed in it's environment (ie knowing what are it's neighbours)
         if up is not None:
             self.up=up.memview[:,-1,:]
         if down is not None:
@@ -151,8 +154,10 @@ cdef class chunk:
     @cython.boundscheck(False) # turn off bounds-checking for entire function
     @cython.wraparound(False)  # turn off negative index wrapping for entire function
     cdef void simulate(self,short isodd) nogil:
-        #on ODD: [:,:,1]->[:,:,0], reverse on non ODD
-        #return true if at least one cell is alive
+# makes the simulation for the cells of the chunk: gets the neighbours of the cell,
+# simulates it's survival and generates a new chunk if necessary
+# when a chunk has no modification, it is considered stable (self.active = false) until one of it's neighbours
+# is modified and turns it active again in order to have a lower number of chunks on wich we do a simulation
         if not self.active:
             return
         self.active=False
@@ -386,6 +391,8 @@ cdef class chunk:
         if self.active and self.havecachedsinceinactive:
             self.havecachedsinceinactive=False
     def getimg(self,isodd:int) -> QPixmap | None:
+# transforms a chunk into an image we can display
+# when a chunk is not active the image is cached
         if not self.active:
             if not self.havecachedsinceinactive:
                 self.havecachedsinceinactive=True
@@ -402,7 +409,7 @@ cdef class chunk:
 
 
 def setchunksize(size:py_int):
-    """set chunk size. Must be called when no chunk is defined, and before defining any or expect weird crashs"""
+    """sets chunk size. Must be called when no chunk is defined, and before defining any, else we can expect weird crashs"""
     global chunksize,cchunksize,zeros_arr
     if size>=2:
         chunksize=size
@@ -419,6 +426,7 @@ ctypedef PyObject *PyObjptr
 cdef vector[PyObjptr] *chunkvector
 
 cdef void new_chunk(x:py_int,y:py_int,short isodd=0,cnp.ndarray start=None):
+# creates a new chunk and insert it in it's environement
     global chunks
     up:chunk=chunks[(x,y-1)] if (x,y-1) in chunks else None
     down:chunk=chunks[(x,y+1)] if (x,y+1) in chunks else None
@@ -440,24 +448,24 @@ cdef void new_chunk(x:py_int,y:py_int,short isodd=0,cnp.ndarray start=None):
     chunkvector.push_back(<PyObjptr>newch)
 
     if up is not None:
-        up.add_voisins(down=newch)
+        up.add_neighbours(down=newch)
     if down is not None:
-        down.add_voisins(up=newch)
+        down.add_neighbours(up=newch)
     if left is not None:
-        left.add_voisins(right=newch)
+        left.add_neighbours(right=newch)
     if right is not None:
-        right.add_voisins(left=newch)
+        right.add_neighbours(left=newch)
     if upleft is not None:
-        upleft.add_voisins(downright=newch)
+        upleft.add_neighbours(downright=newch)
     if upright is not None:
-        upright.add_voisins(downleft=newch)
+        upright.add_neighbours(downleft=newch)
     if downleft is not None:
-        downleft.add_voisins(upright=newch)
+        downleft.add_neighbours(upright=newch)
     if downright is not None:
-        downright.add_voisins(upleft=newch)
+        downright.add_neighbours(upleft=newch)
 
 def start(arr:np.ndarray) -> None:
-    """reinit and start a new simulation with given start situation
+    """reinitializes and start a new simulation with given start situation
     start situation must be of a size multiple of chunksize (or border will be avoided)"""
     global chunks,chunkvector
     chunks={}
@@ -475,6 +483,7 @@ def start(arr:np.ndarray) -> None:
     new_chunk(-1,j+1)
     new_chunk(i+1,j+1)
 def simulate(isodd:int) -> None:
+    """make all chunk simulate their cells for one generation (with multithreading)"""
     cdef short cisodd=isodd
     cdef int i
     cdef size_t lenght=chunkvector.size()
@@ -482,4 +491,4 @@ def simulate(isodd:int) -> None:
         with gil:
             select:chunk=<object>dereference(chunkvector)[i]
         select.simulate(cisodd)
-    
+

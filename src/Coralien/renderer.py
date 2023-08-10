@@ -10,13 +10,13 @@ try:
     import numpy as np
 except:
     if settings["logging"]>=1:
-        print("Numpy is a required depandancie, please install it")
+        print("Numpy is a required depandancy, please install it")
     sys.exit(1)
 try:
     from PIL import Image
 except:
     if settings["logging"]>=1:
-        print("PIL is a required depandancie, please install it")
+        print("PIL is a required depandancy, please install it")
     sys.exit(1)
 
 from . import cy_sim
@@ -28,6 +28,7 @@ _generation:int=0
 transformer:QTransform=QTransform()
 class Renderer(QWidget):
     def paintEvent(self, event: QPaintEvent) -> None:
+        """event triggered by self.repaint, which displays the new image"""
         painter=QPainter(self)
         painter.translate(self.rect().center())
         painter.setTransform(transformer,combine=True)
@@ -36,16 +37,17 @@ class Renderer(QWidget):
             x*=cy_sim.chunksize
             y*=cy_sim.chunksize
             painter.drawPixmap(x,y,chunk.getimg(_generation%2))
-rendu=QWidget()
+renderer=QWidget()
 _renderer=Renderer()
 _renderer.setSizePolicy(QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Expanding)
-rendu.setLayout(QVBoxLayout())
+renderer.setLayout(QVBoxLayout())
 _genlabel=QLabel("generation: 0")
-rendu.layout().addWidget(_genlabel)
-rendu.layout().addWidget(_renderer)
+renderer.layout().addWidget(_genlabel)
+renderer.layout().addWidget(_renderer)
 
 
 def nextgen(*_,generations:int=1) -> None:
+    """process the simulation of one or many generations, and then display the new grid"""
     for i in range(generations):
         global _generation
         cy_sim.simulate(_generation%2)
@@ -53,7 +55,8 @@ def nextgen(*_,generations:int=1) -> None:
     _renderer.repaint()
     _genlabel.setText(f"generation: {_generation}")
 
-def reinitrendu() -> None:
+def reinitrenderer() -> None:
+    """reinitializes the grid, zoom and placement"""
     global _generation,transformer
     _generation = 0
     transformer=QTransform(2,0,0,
@@ -61,4 +64,4 @@ def reinitrendu() -> None:
                            0,0,1)
     _genlabel.setText("generation: 0")
     _renderer.repaint()
-    
+

@@ -21,7 +21,7 @@ class settings_collection():
             cursor=cursor[key]
         return cursor
     
-    def __setitem__(self,__key,value) -> None:
+    def __setitem__(self,__key: str,value) -> None:
         if __debug__:
             if not isinstance(__key,str):
                 raise NotImplementedError("cant access settings collection with something else than a string")
@@ -31,7 +31,7 @@ class settings_collection():
             cursor=cursor.setdefault(key,{})
         cursor[keys[-1]]=value
     
-    def __contains__(self,__key) -> bool:
+    def __contains__(self,__key: str) -> bool:
         if __debug__:
             if not isinstance(__key,str):
                 raise NotImplementedError("cant access settings collection with something else than a string")
@@ -43,7 +43,7 @@ class settings_collection():
             cursor=cursor[key]
         return True
     
-    def __delitem__(self,__key) -> None:
+    def __delitem__(self,__key: str) -> None:
         if __debug__:
             if not isinstance(__key,str):
                 raise NotImplementedError("cant access settings collection with something else than a string")
@@ -74,7 +74,7 @@ class settings_motor():
                 return sett[__key]
         return None
     
-    def __setitem__(self,__key,value) -> None:
+    def __setitem__(self,__key: str,value) -> None:
         if __key in self._overrides:
             del self._overrides[__key]
         self._normal[__key]=value
@@ -147,3 +147,4 @@ if '--verbose' in argv:
 
 if '--debug' in argv:
     settings.override("logging",3)
+

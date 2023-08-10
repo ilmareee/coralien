@@ -12,19 +12,19 @@ try:
     from PySide6.QtGui import *
 except ModuleNotFoundError as e:
     if settings["logging"]>=1:
-        print("\nle module PySide6 devrait être installé pour que ce programme puisse fonctionner, lisez README.md pour plus de détails", file=sys.stderr)
+        print("\nthe PySide6 module must be installed in order for this program to execute, please read the README for further details", file=sys.stderr)
     raise e
 
 
 try:
     from . import cy_sim
 except ImportError as e:
-    print("You must compile the cy_sim module in order to use the Coralien app. Please see README.md for details")
+    print("You must compile the cy_sim module in order to use the Coralien app. Please read the README for further details")
     raise(e)
 
 #main Qt loop
 app: QApplication = QApplication(sys.argv)
-from . import rendu
+from . import renderer
 ###genral utilities windows and functions 
 __warnwin = QScrollArea()
 __warnwintxt = QLabel(__warnwin)
@@ -39,18 +39,18 @@ def warn(warning:str,gravity:int)->None:
         else:
             print(warning)
 
-#setting up the simulation
+#setting up or reinitializing the simulation
 def reinit() -> None:
     cy_sim.start(np.random.randint(0,2,(settings["sim.chunk_size"],settings["sim.chunk_size"]),dtype=np.int8))
-    rendu.reinitrendu()
+    renderer.reinitrenderer()
 
 cy_sim.setchunksize(settings["sim.chunk_size"])
 reinit()
 
-###Main windows configuration
-#yes, there will be only one instance of this windows, but the class is nescessary to ovverride some method (such as closeEvent)
+###Main window configuration
+#there will be only one instance of this windows, but the class is nescessary to ovverride some method (such as closeEvent)
 class Main_window(QWidget):
-    #Main windows class
+    #Main window class
     def __init__(self) -> None:
         super().__init__()
         if settings["logging"]>=3:
@@ -67,7 +67,8 @@ class Main_window(QWidget):
         
         self.timer: QTimer = QTimer(self)
         
-        for name,function in (("next",rendu.nextgen),("next*10",partial(rendu.nextgen,generations=10)),
+        #buttons which will be displayed on the window
+        for name,function in (("next",renderer.nextgen),("next*10",partial(renderer.nextgen,generations=10)),
                               ("start automatic simulation",self.timer.start),("stop autosim", self.timer.stop),("reinitialize simulation", reinit)):
             self.button.append(QPushButton(name))
             self.button[-1].clicked.connect(function)
@@ -75,11 +76,12 @@ class Main_window(QWidget):
         
         
         self.layout().addWidget(self._controlbar)
-        self.layout().addWidget(rendu.rendu)
+        self.layout().addWidget(renderer.renderer)
         
         self.timer.setInterval(1/settings["sim.fps"]*1000)
-        self.timer.timeout.connect(rendu.nextgen)
+        self.timer.timeout.connect(renderer.nextgen)
         
+        #key controls of the image
         self.contsens=settings["affichage.controles.sensibilite"]
         self.controles: dict[str, list[QKeySequence]]={
             "droite":    [QKeySequence(i) for i in settings["affichage.controles.droite"]],
@@ -93,27 +95,27 @@ class Main_window(QWidget):
             print("initializing main windows complete")
     
     def keyPressEvent(self, event) -> None:
-        """ Modifie l'emplacement rendu.
+        """ Moves the displayed image.
 
         Args:
-            event (class 'PySide6.QtGui.QKeyEvent'): Touche du clavier appuyée.
+            event (class 'PySide6.QtGui.QKeyEvent'): pressed key.
         """
          
         if event.keyCombination().toCombined() in self.controles["droite"]:
-            rendu.transformer.translate(self.contsens,0)
+            renderer.transformer.translate(-self.contsens,0)
         if event.keyCombination().toCombined() in self.controles["gauche"]:
-            rendu.transformer.translate(-self.contsens,0)
+            renderer.transformer.translate(self.contsens,0)
         if event.keyCombination().toCombined() in self.controles["monter"]:
-            rendu.transformer.translate(0,-self.contsens)
+            renderer.transformer.translate(0,self.contsens)
         if event.keyCombination().toCombined() in self.controles["descendre"]:
-            rendu.transformer.translate(0,self.contsens)
-        rendu._renderer.repaint()
+            renderer.transformer.translate(0,-self.contsens)
+        renderer._renderer.repaint()
         
     def wheelEvent(self, event):
-        """Sert à zoom / dézoom.
+        """Used to zoom in or out.
 
         Args:
-            event (class 'PySide6.QtGui.QWheelEvent'): Evenement, ici molette de la souris.
+            event (class 'PySide6.QtGui.QWheelEvent'): mouse scroll.
         """
         y=event.angleDelta().y()
         if y > 100:
@@ -125,8 +127,9 @@ class Main_window(QWidget):
             scale=1+y/1000*self.contsens
         else:
             scale=1/(1-y/1000*self.contsens)
-        rendu.transformer.scale(scale,scale)
-        rendu._renderer.repaint()
+        renderer.transformer.scale(scale,scale)
+        renderer._renderer.repaint()
 
 MainWin:QWidget=Main_window()
 MainWin.show()
+
