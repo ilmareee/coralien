@@ -427,6 +427,7 @@ cdef void new_chunk(x:int,y:int,isodd:short=0,cnp.ndarray start=None):
         arr[:,:,isodd]=start
 
     newch=chunk(x,y,up,down,right,left,upleft,upright,downleft,downright,arr)
+    newch.getimg(isodd)
     chunks[(x,y)]=newch
     chunkvector.push_back(<PyObjptr>newch)
 
