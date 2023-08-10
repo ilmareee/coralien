@@ -9,6 +9,7 @@ from cython.operator import dereference
 import numpy as np
 cimport numpy as cnp
 cimport cython
+from cython import py_int
 from cpython cimport PyObject
 from cython.parallel import prange
 from PIL import Image
@@ -100,8 +101,8 @@ cdef class chunk:
     cdef DTYPE_t[:] downright
     cdef bint active
     cdef bint havedrawncached
-    posx:cython.py_int
-    posy:cython.py_int
+    posx:py_int
+    posy:py_int
     cached_pixmap:QPixmap
 
     def __init__(self,posx:int,posy:int,up:chunk=None,down:chunk=None,right:chunk=None,left:chunk=None,upleft:chunk=None,upright:chunk=None,downleft:chunk=None,downright:chunk=None,startarr:np.array=None) -> None:
@@ -149,7 +150,7 @@ cdef class chunk:
  
     @cython.boundscheck(False) # turn off bounds-checking for entire function
     @cython.wraparound(False)  # turn off negative index wrapping for entire function
-    cdef void simulate(self,isodd:short) nogil:
+    cdef void simulate(self,short isodd) nogil:
         #on ODD: [:,:,1]->[:,:,0], reverse on non ODD
         #return true if at least one cell is alive
         if not self.active:
@@ -414,7 +415,7 @@ chunks:dict[tuple[int,int],chunk]={}
 ctypedef PyObject *PyObjptr
 cdef vector[PyObjptr] *chunkvector
 
-cdef void new_chunk(x:int,y:int,isodd:short=0,cnp.ndarray start=None):
+cdef void new_chunk(x:int,y:int,short isodd=0,cnp.ndarray start=None):
     global chunks
     up:chunk=chunks[(x,y-1)] if (x,y-1) in chunks else None
     down:chunk=chunks[(x,y+1)] if (x,y+1) in chunks else None
